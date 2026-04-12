@@ -53,8 +53,23 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
   }
+}
+
+/* ── Leaflet z-index fix (tránh bị Navbar sticky che) ───────────── */
+.leaflet-pane {
+  z-index: 10;
+}
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 20;
+}
+.leaflet-popup {
+  z-index: 30;
 }

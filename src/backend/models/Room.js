@@ -1,7 +1,6 @@
 const mongoose = require('mongoose')
 const slugify = require('slugify')
-const { v4: uuidv4 } = require('uuid')
-
+const crypto = require('crypto')
 const roomSchema = new mongoose.Schema(
   {
     title: {
@@ -32,10 +31,14 @@ const roomSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    roomType: {
+      type: String,
+      enum: ['phòng_trọ', 'chung_cư_mini', 'nhà_nguyên_căn', 'ký_túc_xá'],
+      default: 'phòng_trọ',
+    },
     amenities: {
       type: [String],
       default: [],
-      // e.g. ['wifi', 'air_conditioner', 'washing_machine', 'parking', 'kitchen', 'private_bathroom']
     },
     images: {
       type: [String],
@@ -46,14 +49,11 @@ const roomSchema = new mongoose.Schema(
       default: [],
     },
     address: {
-      type: String,
-      required: [true, 'Địa chỉ là bắt buộc'],
-    },
-    district: {
-      type: String,
-    },
-    ward: {
-      type: String,
+      street: { type: String, required: true },
+      ward: { type: String },
+      district: { type: String },
+      city: { type: String, default: 'Vĩnh Long' },
+      fullAddress: { type: String },
     },
     location: {
       type: {
@@ -108,14 +108,14 @@ const roomSchema = new mongoose.Schema(
 roomSchema.index({ location: '2dsphere' })
 
 // Text search index
-roomSchema.index({ title: 'text', description: 'text', address: 'text' })
+roomSchema.index({ title: 'text', description: 'text', 'address.fullAddress': 'text' })
 
 // Tự động tạo slug trước khi lưu
 roomSchema.pre('save', async function (next) {
   if (!this.isModified('title') && this.slug) return next()
 
   const baseSlug = slugify(this.title, { lower: true, strict: true, locale: 'vi' })
-  const shortId = uuidv4().split('-')[0] // 8 chars
+  const shortId = crypto.randomBytes(4).toString('hex') // 8 chars
   this.slug = `${baseSlug}-${shortId}`
   next()
 })

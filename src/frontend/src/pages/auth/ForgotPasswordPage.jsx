@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-blue-950 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Link to="/" className="flex items-center gap-2 text-2xl font-bold text-primary">
@@ -45,7 +45,7 @@ export default function ForgotPasswordPage() {
           </Link>
         </div>
 
-        <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur">
+        <Card className="shadow-sm">
           <CardHeader className="space-y-1 text-center">
             <div className="flex justify-center mb-2">
               <div className="p-3 rounded-full bg-primary/10">
