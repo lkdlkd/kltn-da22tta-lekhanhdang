@@ -235,7 +235,7 @@ exports.getRooms = async (req, res) => {
 
     const [rooms, total] = await Promise.all([
       Room.find(query)
-        .populate('landlord', 'name email phone')
+        .populate('landlord', 'name username email phone')
         .sort(sortBy)
         .skip(skip)
         .limit(limit),
@@ -269,9 +269,18 @@ exports.getMyRooms = async (req, res) => {
 
 exports.getRoomBySlug = async (req, res) => {
   try {
-    const room = await Room.findOne({ slug: req.params.slug }).populate('landlord', 'name email phone')
+    const room = await Room.findOne({ slug: req.params.slug }).populate('landlord', 'name username email phone')
     if (!room) {
       return sendResponse(res, 404, false, 'Không tìm thấy phòng')
+    }
+
+    // Chỉ cho xem phòng đã duyệt — admin và chủ phòng vẫn xem được
+    if (room.status !== 'approved') {
+      const isAdmin = req.user?.role === 'admin'
+      const isOwner = req.user && room.landlord._id.toString() === req.user._id.toString()
+      if (!isAdmin && !isOwner) {
+        return sendResponse(res, 404, false, 'Phòng này không còn hiển thị công khai')
+      }
     }
 
     await Room.findByIdAndUpdate(room._id, { $inc: { viewCount: 1 } })
@@ -287,9 +296,18 @@ exports.getRoomById = async (req, res) => {
       return sendResponse(res, 400, false, 'ID phòng không hợp lệ')
     }
 
-    const room = await Room.findById(req.params.id).populate('landlord', 'name email phone')
+    const room = await Room.findById(req.params.id).populate('landlord', 'name username email phone')
     if (!room) {
       return sendResponse(res, 404, false, 'Không tìm thấy phòng')
+    }
+
+    // Chỉ công khai phòng đã duyệt — admin và chủ phòng vẫn xem được
+    if (room.status !== 'approved') {
+      const isAdmin = req.user?.role === 'admin'
+      const isOwner = req.user && room.landlord._id.toString() === req.user._id.toString()
+      if (!isAdmin && !isOwner) {
+        return sendResponse(res, 404, false, 'Phòng này không còn hiển thị công khai')
+      }
     }
 
     await Room.findByIdAndUpdate(room._id, { $inc: { viewCount: 1 } })

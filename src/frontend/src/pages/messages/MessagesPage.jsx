@@ -242,7 +242,7 @@ export default function MessagesPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden border-t">
+    <div className="flex overflow-hidden border-t" style={{ height: 'calc(100svh - var(--navbar-h))' }}>
       {/* ── Conversation List ─────────────────────────────────────────── */}
       <div className={cn('w-full shrink-0 overflow-y-auto border-r bg-background md:w-72 lg:w-80', activeConvId && 'hidden md:block')}>
         <div className="border-b px-4 py-3">

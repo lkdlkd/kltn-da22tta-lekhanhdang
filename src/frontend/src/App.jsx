@@ -5,6 +5,7 @@ import { store } from '@/store'
 import { PrivateRoute } from '@/components/PrivateRoute'
 import { RoleRoute } from '@/components/RoleRoute'
 import { Navbar } from '@/components/layout/Navbar'
+import { Footer } from '@/components/layout/Footer'
 
 // Auth Pages
 import LoginPage from '@/pages/auth/LoginPage'
@@ -15,6 +16,7 @@ import VerifyEmailPage from '@/pages/auth/VerifyEmailPage'
 
 // Room Pages
 import LandlordRoomsPage from '@/pages/landlord/LandlordRoomsPage'
+import LandlordProfilePage from '@/pages/landlord/LandlordProfilePage'
 import RoomFormPage from '@/pages/landlord/RoomFormPage'
 import RoomDetailPage from '@/pages/rooms/RoomDetailPage'
 import SearchPage from '@/pages/search/SearchPage'
@@ -42,18 +44,33 @@ import AdminReviewsPage from '@/pages/admin/AdminReviewsPage'
 import AdminReportsPage from '@/pages/admin/AdminReportsPage'
 
 const NotFoundPage = () => (
-  <div className="container mx-auto px-4 py-16 text-center">
-    <h1 className="text-6xl font-bold text-muted-foreground mb-4">404</h1>
-    <p className="text-xl">Trang không tồn tại</p>
+  <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center px-4">
+    <div className="text-7xl font-black text-muted-foreground/20">404</div>
+    <h1 className="text-2xl font-bold">Trang không tồn tại</h1>
+    <p className="text-muted-foreground text-sm">Đường dẫn bạn truy cập không hợp lệ.</p>
+    <a href="/" className="text-sm text-primary underline">Quay về trang chủ</a>
   </div>
 )
 
-function AppLayout({ children, fullHeight = false }) {
+/**
+ * AppLayout variants:
+ *  fullHeight — page occupies remaining viewport (Messages, Search map view)
+ *  noFooter   — suppress footer without fullHeight
+ */
+function AppLayout({ children, fullHeight = false, noFooter = false }) {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="flex min-h-svh flex-col bg-background">
       <Navbar />
-      <main className={fullHeight ? 'flex-1 overflow-hidden' : 'flex-1'}>{children}</main>
+      <main
+        className={[
+          'flex-1',
+          fullHeight ? 'flex flex-col overflow-hidden' : '',
+        ].join(' ')}
+      >
+        {children}
+      </main>
       <CompareBar />
+      {!fullHeight && !noFooter && <Footer />}
     </div>
   )
 }
@@ -75,6 +92,7 @@ export default function App() {
           <Route path="/" element={<AppLayout><HomePage /></AppLayout>} />
           <Route path="/search" element={<AppLayout fullHeight><SearchPage /></AppLayout>} />
           <Route path="/rooms/:slug" element={<AppLayout><RoomDetailPage /></AppLayout>} />
+          <Route path="/landlord/:username" element={<AppLayout><LandlordProfilePage /></AppLayout>} />
 
           {/* Protected routes */}
           <Route element={<PrivateRoute />}>

@@ -60,3 +60,33 @@ exports.changePassword = async (req, res) => {
     return sendResponse(res, 500, false, error.message)
   }
 }
+
+// GET /api/users/:username/public  — Hồ sơ công khai của chủ trọ + danh sách phòng
+exports.getPublicProfile = async (req, res) => {
+  try {
+    const Room = require('../models/Room')
+    const { username } = req.params
+
+    const user = await User.findOne({ username }).select('name username avatar phone role createdAt')
+    if (!user) return sendResponse(res, 404, false, 'Không tìm thấy chủ trọ')
+    if (user.role !== 'landlord') return sendResponse(res, 403, false, 'Người dùng này không phải chủ trọ')
+
+    const rooms = await Room.find({ landlord: user._id, status: 'approved' })
+      .select('title slug images price area isAvailable address averageRating reviewCount viewCount roomType createdAt')
+      .sort({ createdAt: -1 })
+
+    const stats = {
+      totalRooms: rooms.length,
+      availableRooms: rooms.filter((r) => r.isAvailable).length,
+      avgRating: rooms.length
+        ? (rooms.reduce((s, r) => s + (r.averageRating || 0), 0) / rooms.length).toFixed(1)
+        : 0,
+    }
+
+    return sendResponse(res, 200, true, 'Hồ sơ chủ trọ', { landlord: user, rooms, stats })
+  } catch (error) {
+    return sendResponse(res, 500, false, error.message)
+  }
+}
+
+

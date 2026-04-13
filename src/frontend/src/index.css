@@ -55,21 +55,42 @@
   }
   html {
     scroll-behavior: smooth;
+    /* Navbar height token — update if h-14 changes */
+    --navbar-h: 3.5rem; /* h-14 = 56px */
   }
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
+    /* min-h with svh fallback */
+    min-height: 100vh;
+    min-height: 100svh;
   }
 }
 
+/* Page content offset for sticky sidebar calc */
+.sticky-top-content {
+  top: calc(var(--navbar-h) + 1rem);
+}
+
 /* ── Leaflet z-index fix (tránh bị Navbar sticky che) ───────────── */
-.leaflet-pane {
-  z-index: 10;
+.leaflet-pane { z-index: 10; }
+.leaflet-top, .leaflet-bottom { z-index: 20; }
+.leaflet-popup { z-index: 30; }
+
+/* ── Scrollbar ────────────────────────────────────────────────────── */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Focus ring consistent ───────────────────────────────────────── */
+*:focus-visible {
+  @apply outline-none ring-2 ring-ring ring-offset-2;
 }
-.leaflet-top,
-.leaflet-bottom {
-  z-index: 20;
+
+/* ── Page fade-in ────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.leaflet-popup {
-  z-index: 30;
+.page-enter {
+  animation: fadeUp 0.25s ease-out;
 }

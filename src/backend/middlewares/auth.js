@@ -50,4 +50,21 @@ const authorize = (...roles) => {
   }
 }
 
-module.exports = { authenticate, authorize }
+/**
+ * Middleware: xác thực token tuỳ chọn
+ * Nếu có token hợp lệ → set req.user; nếu không có → next() bình thường
+ */
+const authenticateOptional = async (req, _res, next) => {
+  try {
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1]
+      const decoded = jwt.verify(token, process.env.JWT_SECRET)
+      const user = await User.findById(decoded.id).select('-password')
+      if (user && !user.isBanned) req.user = user
+    }
+  } catch { /* token không hợp lệ hoặc hết hạn — bỏ qua */ }
+  next()
+}
+
+module.exports = { authenticate, authorize, authenticateOptional }

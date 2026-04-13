@@ -5,15 +5,15 @@ import { toast } from 'sonner'
 import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from 'react-leaflet'
 import {
   Navigation, Share2, Users, Expand, House, ArrowLeft,
-  Heart, Flag, GitCompare, MapPin, Wifi, Wind, Flame,
-  Package, WashingMachine, ChefHat, Car, ShieldCheck,
-  Camera, Trees, Sofa, Bath, Zap, ArrowUp, MessageCircle,
+  MapPin, Wifi, Wind, Flame, Star, Package, WashingMachine,
+  ChefHat, Car, ShieldCheck, Camera, Trees, Sofa, Bath, Zap,
+  ArrowUp, MessageCircle, Calendar, Eye, Clock,
+  CheckCircle2, XCircle, SquareArrowOutUpRight, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { getRoomBySlugApi, getRoomDistanceApi } from '@/services/roomService'
 import { createInteractionApi } from '@/services/interactionService'
 import { getFavoriteIdsApi } from '@/services/favoriteService'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -23,532 +23,520 @@ import { ReviewSection } from '@/components/rooms/ReviewSection'
 import { BookingDialog } from '@/components/rooms/BookingDialog'
 import { ReportButton } from '@/components/rooms/ReportButton'
 import { CompareButton } from '@/components/compare/CompareBar'
+import { PanoramaViewer } from '@/components/rooms/PanoramaViewer'
+import { cn } from '@/lib/utils'
 
-const roomTypeLabels = {
+// ── Config ─────────────────────────────────────────────────────────────────
+const ROOM_TYPE_LABELS = {
   'phòng_trọ': 'Phòng trọ',
   'chung_cư_mini': 'Chung cư mini',
   'nhà_nguyên_căn': 'Nhà nguyên căn',
   'ký_túc_xá': 'Ký túc xá',
 }
-
-const amenityConfig = {
-  wifi:               { label: 'Wifi',            icon: Wifi },
-  'điều_hòa':         { label: 'Điều hòa',        icon: Wind },
-  'nóng_lạnh':        { label: 'Nóng lạnh',       icon: Flame },
-  'tủ_lạnh':          { label: 'Tủ lạnh',         icon: Package },
-  'máy_giặt':         { label: 'Máy giặt',        icon: WashingMachine },
-  bếp:                { label: 'Bếp',             icon: ChefHat },
-  'chỗ_để_xe':        { label: 'Chỗ để xe',       icon: Car },
-  'an_ninh':          { label: 'An ninh',         icon: ShieldCheck },
-  camera:             { label: 'Camera',          icon: Camera },
-  'thang_máy':        { label: 'Thang máy',       icon: ArrowUp },
-  'ban_công':         { label: 'Ban công',        icon: Trees },
-  'nội_thất':         { label: 'Nội thất',        icon: Sofa },
-  'vệ_sinh_riêng':    { label: 'Vệ sinh riêng',  icon: Bath },
-  'điện_nước_riêng':  { label: 'Điện nước riêng', icon: Zap },
+const AMENITY_CONFIG = {
+  wifi: { label: 'Wifi', icon: Wifi },
+  'điều_hòa': { label: 'Điều hòa', icon: Wind },
+  'nóng_lạnh': { label: 'Nóng lạnh', icon: Flame },
+  'tủ_lạnh': { label: 'Tủ lạnh', icon: Package },
+  'máy_giặt': { label: 'Máy giặt', icon: WashingMachine },
+  bếp: { label: 'Bếp', icon: ChefHat },
+  'chỗ_để_xe': { label: 'Chỗ để xe', icon: Car },
+  'an_ninh': { label: 'An ninh', icon: ShieldCheck },
+  camera: { label: 'Camera', icon: Camera },
+  'thang_máy': { label: 'Thang máy', icon: ArrowUp },
+  'ban_công': { label: 'Ban công', icon: Trees },
+  'nội_thất': { label: 'Nội thất', icon: Sofa },
+  'vệ_sinh_riêng': { label: 'VS riêng', icon: Bath },
+  'điện_nước_riêng': { label: 'ĐN riêng', icon: Zap },
 }
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(value || 0)
+const fmtPrice = (v) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(v || 0)
+
+const fmtAddress = (a) => {
+  if (!a) return ''
+  if (typeof a === 'string') return a
+  return a.fullAddress || [a.street, a.ward, a.district, a.city].filter(Boolean).join(', ')
 }
 
-function formatAddress(address) {
-  if (!address) return 'Chưa có địa chỉ'
-  if (typeof address === 'string') return address
-  return address.fullAddress || [address.street, address.ward, address.district, address.city].filter(Boolean).join(', ')
+// ── Skeleton ───────────────────────────────────────────────────────────────
+function PageSkeleton() {
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-5 space-y-4">
+      <Skeleton className="h-4 w-32" />
+      <Skeleton className="w-full rounded-xl" style={{ height: 320 }} />
+      <div className="grid lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 space-y-3">
+          <Skeleton className="h-7 w-2/3" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <div className="flex gap-2">{[0,1,2,3].map(i=><Skeleton key={i} className="h-8 flex-1 rounded-full"/>)}</div>
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-9 w-full rounded-xl" />
+          <Skeleton className="h-9 w-full rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  )
 }
 
+// ── Main ───────────────────────────────────────────────────────────────────
 export default function RoomDetailPage() {
   const { slug } = useParams()
-  const user = useSelector((state) => state.auth?.user)
+  const user = useSelector((s) => s.auth?.user)
   const navigate = useNavigate()
-  const [isFavorited, setIsFavorited] = useState(false)
-  const [bookingOpen, setBookingOpen] = useState(false)
+
   const [room, setRoom] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isFavorited, setIsFavorited] = useState(false)
+  const [bookingOpen, setBookingOpen] = useState(false)
+  const [panoramaSrc, setPanoramaSrc] = useState(null)
+  const [imgIdx, setImgIdx] = useState(0)
+  const [activeTab, setActiveTab] = useState('info')
   const [userLocation, setUserLocation] = useState(null)
   const [distanceText, setDistanceText] = useState('')
   const [routePositions, setRoutePositions] = useState([])
   const [routeSummary, setRouteSummary] = useState('')
   const [routing, setRouting] = useState(false)
-  const [activeTab, setActiveTab] = useState('info')
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const mapRef = useRef(null)
 
-  // ── Fetch phòng theo slug ──────────────────────────────────────────
+  const [errorMsg, setErrorMsg] = useState('')
+
+  // fetching
   useEffect(() => {
-    const fetchDetail = async () => {
-      try {
-        setLoading(true)
-        const res = await getRoomBySlugApi(slug)
-        setRoom(res.data?.data?.room || null)
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Không thể tải chi tiết phòng')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchDetail()
+    setLoading(true)
+    setErrorMsg('')
+    getRoomBySlugApi(slug)
+      .then((r) => setRoom(r.data?.data?.room || null))
+      .catch((err) => {
+        const msg = err?.response?.data?.message || ''
+        if (err?.response?.status === 404) {
+          setErrorMsg(msg || 'Không tìm thấy phòng')
+        } else {
+          toast.error('Không thể tải chi tiết phòng')
+        }
+      })
+      .finally(() => setLoading(false))
   }, [slug])
 
-  // ── Lấy vị trí user & tính khoảng cách ───────────────────────────
   useEffect(() => {
     if (!room) return
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const location = { lat: position.coords.latitude, lng: position.coords.longitude }
-        setUserLocation(location)
+      async (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setUserLocation(loc)
         try {
-          const res = await getRoomDistanceApi(room._id, location.lat, location.lng)
-          setDistanceText(res.data?.data?.distance_text || '')
-        } catch {
-          setDistanceText('')
-        }
+          const r = await getRoomDistanceApi(room._id, loc.lat, loc.lng)
+          setDistanceText(r.data?.data?.distance_text || '')
+        } catch { setDistanceText('') }
       },
-      () => setUserLocation(null)
+      () => {}
     )
   }, [room])
 
-  // ── Reset ảnh khi đổi phòng ───────────────────────────────────────
-  useEffect(() => {
-    setSelectedImageIndex(0)
-  }, [room?.slug])
+  useEffect(() => { setImgIdx(0) }, [room?.slug])
 
-  // ── Ghi nhận interaction view + load favorite status ─────────────
   useEffect(() => {
-    if (!room?._id) return
-    if (user) {
-      createInteractionApi(room._id, 'view').catch(() => {})
-      getFavoriteIdsApi()
-        .then((res) => {
-          const ids = res.data?.data?.roomIds || []
-          setIsFavorited(ids.includes(String(room._id)))
-        })
-        .catch(() => {})
-    }
+    if (!room?._id || !user) return
+    createInteractionApi(room._id, 'view').catch(() => {})
+    getFavoriteIdsApi()
+      .then((r) => setIsFavorited((r.data?.data?.roomIds || []).includes(String(room._id))))
+      .catch(() => {})
   }, [room?._id, user])
 
-
-  // ── Computed ──────────────────────────────────────────────────────
   const roomPosition = useMemo(() => {
     if (!room?.location?.coordinates) return null
     const [lng, lat] = room.location.coordinates
     return [lat, lng]
   }, [room])
 
-  const roomImages = room?.images || []
-  const selectedImage = roomImages[selectedImageIndex] || roomImages[0] || ''
-  const hasMultipleImages = roomImages.length > 1
+  const imgs = room?.images || []
+  const imgs360 = room?.images360 || []
+  const selectedImg = imgs[imgIdx] || imgs[0] || ''
 
-  // ── Loading skeleton ──────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <Skeleton className="h-6 w-32" />
-        <Card className="overflow-hidden">
-          <div className="grid lg:grid-cols-4">
-            <Skeleton className="lg:col-span-2 h-[360px]" />
-            <div className="lg:col-span-2 p-6 space-y-4">
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-8 w-3/4" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-10 w-36" />
-              <div className="grid grid-cols-3 gap-2">
-                <Skeleton className="h-16" />
-                <Skeleton className="h-16" />
-                <Skeleton className="h-16" />
-              </div>
-              <div className="flex gap-2">
-                <Skeleton className="h-10 w-40" />
-                <Skeleton className="h-10 w-32" />
-              </div>
-            </div>
-          </div>
-        </Card>
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    )
-  }
-
-  // ── Not found ─────────────────────────────────────────────────────
-  if (!room) {
-    return (
-      <div className="container mx-auto px-4 py-20 text-center space-y-4">
-        <div className="text-6xl">🏠</div>
-        <h1 className="text-2xl font-bold">Không tìm thấy phòng</h1>
-        <p className="text-muted-foreground">
-          Phòng này có thể đã bị xoá hoặc đường dẫn không đúng.
-        </p>
-        <Button asChild>
-          <Link to="/search">Tìm phòng khác</Link>
-        </Button>
-      </div>
-    )
-  }
-
-  const userPosition = userLocation ? [userLocation.lat, userLocation.lng] : null
-
-  // ── Handlers ──────────────────────────────────────────────────────
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/rooms/${room.slug}`
+    const url = `${window.location.origin}/rooms/${room.slug}`
     try {
-      if (navigator.share) {
-        await navigator.share({ title: room.title, text: room.title, url: shareUrl })
-        return
-      }
-      await navigator.clipboard.writeText(shareUrl)
+      if (navigator.share) { await navigator.share({ title: room.title, url }); return }
+      await navigator.clipboard.writeText(url)
       toast.success('Đã sao chép link!')
-    } catch {
-      toast.error('Không thể sao chép link')
-    }
+    } catch { toast.error('Không thể sao chép') }
   }
 
   const handleDirections = async () => {
+    if (!userLocation) { toast.error('Bật định vị để chỉ đường'); return }
     if (!roomPosition) return
-    if (!userLocation) {
-      toast.error('Vui lòng bật định vị để chỉ đường trực tiếp trên bản đồ')
-      return
-    }
     try {
-      setRouting(true)
-      setRouteSummary('')
+      setRouting(true); setRouteSummary('')
       const { lat: oLat, lng: oLng } = userLocation
       const [dLat, dLng] = roomPosition
-      const url = `https://router.project-osrm.org/route/v1/driving/${oLng},${oLat};${dLng},${dLat}?overview=full&geometries=geojson`
-      const response = await fetch(url)
-      const data = await response.json()
-      const route = data?.routes?.[0]
-      if (!route?.geometry?.coordinates?.length) throw new Error('Không tìm thấy tuyến đường phù hợp')
-      const positions = route.geometry.coordinates.map(([lng, lat]) => [lat, lng])
-      setRoutePositions(positions)
-      const distanceKm = route.distance ? (route.distance / 1000).toFixed(1) : null
-      const durationMin = route.duration ? Math.round(route.duration / 60) : null
-      setRouteSummary([distanceKm ? `${distanceKm} km` : null, durationMin ? `${durationMin} phút` : null].filter(Boolean).join(' · '))
-      if (mapRef.current?.fitBounds) mapRef.current.fitBounds(positions, { padding: [40, 40] })
-      toast.success('Đã hiển thị tuyến đường trên bản đồ')
+      const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${oLng},${oLat};${dLng},${dLat}?overview=full&geometries=geojson`)
+      const d = await r.json()
+      const route = d?.routes?.[0]
+      if (!route?.geometry?.coordinates?.length) throw new Error()
+      const pos = route.geometry.coordinates.map(([ln, lt]) => [lt, ln])
+      setRoutePositions(pos)
+      const dist = route.distance ? `${(route.distance / 1000).toFixed(1)} km` : ''
+      const dur = route.duration ? `~${Math.round(route.duration / 60)} phút` : ''
+      setRouteSummary([dist, dur].filter(Boolean).join(' · '))
+      mapRef.current?.fitBounds?.(pos, { padding: [30, 30] })
       setActiveTab('map')
+      toast.success('Đã vẽ tuyến đường!')
     } catch {
-      setRoutePositions([userPosition, roomPosition])
-      setRouteSummary('Không lấy được lộ trình chi tiết, hiển thị đường thẳng ước lượng')
-      toast.error('Không thể lấy tuyến đường chi tiết, đã hiển thị đường ước lượng')
-    } finally {
-      setRouting(false)
-    }
+      const p = [[userLocation.lat, userLocation.lng], roomPosition]
+      setRoutePositions(p)
+      setRouteSummary('Đường thẳng ước lượng')
+      toast.error('Không lấy được lộ trình')
+    } finally { setRouting(false) }
   }
 
-  // ── Render ────────────────────────────────────────────────────────
-  return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+  const goImg = (dir) => setImgIdx((i) => (i + dir + imgs.length) % imgs.length)
+  const userPos = userLocation ? [userLocation.lat, userLocation.lng] : null
+  const goMsg = () => { if (!user) { navigate('/login'); return }; navigate(`/messages?to=${room.landlord?._id}&room=${room._id}`) }
+  const goBook = () => { if (!user) { navigate('/login'); return }; setBookingOpen(true) }
 
-      {/* Breadcrumb / Back */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Button variant="ghost" size="sm" asChild className="-ml-2">
-          <Link to="/search">
-            <ArrowLeft className="h-4 w-4" />
-            Quay lại tìm kiếm
-          </Link>
-        </Button>
+  if (loading) return <PageSkeleton />
+  if (errorMsg || !room) return (
+    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center px-4">
+      <span className="text-5xl">{errorMsg?.includes('ẩn') || errorMsg?.includes('vi phạm') ? '🚫' : '🏠'}</span>
+      <p className="font-semibold">{errorMsg || 'Không tìm thấy phòng'}</p>
+      {(errorMsg?.includes('ẩn') || errorMsg?.includes('công khai')) && (
+        <p className="text-sm text-muted-foreground max-w-xs">
+          Phòng này đã bị ẩn hoặc xóa bởi quản trị viên do vi phạm nội quy.
+        </p>
+      )}
+      <Button size="sm" asChild><Link to="/search">Tìm phòng khác</Link></Button>
+    </div>
+  )
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-5 space-y-5">
+
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link to="/search" className="flex items-center gap-1 hover:text-foreground transition-colors">
+          <ArrowLeft className="h-3.5 w-3.5" />Tìm kiếm
+        </Link>
+        <span>/</span>
+        <span className="truncate text-foreground font-medium max-w-[240px]">{room.title}</span>
       </div>
 
-      {/* ── Hero Card ─────────────────────────────────────────────── */}
-      <Card className="overflow-hidden">
-        <div className="grid gap-0 lg:grid-cols-2">
+      {/* ── IMAGE GALLERY ─────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-xl bg-muted group">
+        {selectedImg ? (
+          <img
+            src={selectedImg}
+            alt={room.title}
+            className="h-[260px] w-full object-cover sm:h-[340px] transition-transform duration-300 group-hover:scale-[1.01]"
+          />
+        ) : (
+          <div className="flex h-[260px] w-full items-center justify-center text-muted-foreground text-sm sm:h-[340px]">
+            Chưa có ảnh
+          </div>
+        )}
 
-          {/* Cột ảnh */}
-          <div className="bg-muted">
-            <div className="relative overflow-hidden">
-              {selectedImage ? (
-                <img
-                  src={selectedImage}
-                  alt={room.title}
-                  className="h-[260px] w-full object-cover sm:h-[320px] lg:h-[400px]"
-                />
-              ) : (
-                <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground sm:h-[320px] lg:h-[400px]">
-                  Chưa có ảnh đại diện
-                </div>
+        {/* overlay top-left badges */}
+        <div className="absolute left-3 top-3 flex gap-2">
+          <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm shadow',
+            room.isAvailable ? 'bg-emerald-500/90 text-white' : 'bg-zinc-700/80 text-white')}>
+            {room.isAvailable
+              ? <><CheckCircle2 className="h-3 w-3" />Còn trống</>
+              : <><XCircle className="h-3 w-3" />Đã thuê</>}
+          </span>
+          {imgs360.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setPanoramaSrc(imgs360[0])}
+              className="inline-flex items-center gap-1 rounded-full bg-primary/90 px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow backdrop-blur-sm hover:bg-primary transition-colors"
+            >
+              🔭 360°
+            </button>
+          )}
+        </div>
+
+        {/* nav arrows */}
+        {imgs.length > 1 && (
+          <>
+            <button onClick={() => goImg(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button onClick={() => goImg(1)} className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <div className="absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 text-xs text-white backdrop-blur-sm">
+              {imgIdx + 1}/{imgs.length}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Thumbnail strip */}
+      {imgs.length > 1 && (
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+          {imgs.map((img, i) => (
+            <button key={i} onClick={() => setImgIdx(i)}
+              className={cn('shrink-0 overflow-hidden rounded-lg transition-all',
+                i === imgIdx ? 'ring-2 ring-primary ring-offset-1' : 'opacity-60 hover:opacity-100')}>
+              <img src={img} alt="" className="h-14 w-20 object-cover" />
+            </button>
+          ))}
+          {imgs360.map((img, i) => (
+            <button key={`360-${i}`} onClick={() => setPanoramaSrc(img)}
+              className="relative shrink-0 overflow-hidden rounded-lg ring-1 ring-primary/50 hover:ring-primary transition-all">
+              <img src={img} alt="" className="h-14 w-20 object-cover opacity-80" />
+              <span className="absolute inset-0 flex items-center justify-center bg-black/30 text-[10px] font-bold text-white">360°</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── MAIN CONTENT: left col + right sticky sidebar ────────────── */}
+      <div className="grid gap-5 lg:grid-cols-3">
+
+        {/* ── LEFT: Info + Tabs ───────────────────────────────────────── */}
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* Title row */}
+          <div>
+            <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+              <Badge variant="secondary" className="text-xs">{ROOM_TYPE_LABELS[room.roomType] || 'Phòng trọ'}</Badge>
+              {distanceText && (
+                <Badge variant="outline" className="text-xs gap-1"><MapPin className="h-2.5 w-2.5" />{distanceText}</Badge>
+              )}
+              {room.averageRating > 0 && (
+                <Badge variant="outline" className="text-xs gap-1 text-amber-600 border-amber-300">
+                  <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
+                  {room.averageRating.toFixed(1)} ({room.reviewCount})
+                </Badge>
               )}
             </div>
-
-            {/* Thumbnails */}
-            {hasMultipleImages && (
-              <div className="grid grid-cols-6 gap-1.5 p-3 sm:grid-cols-8">
-                {roomImages.map((img, index) => (
-                  <button
-                    key={`${img}-${index}`}
-                    type="button"
-                    onClick={() => setSelectedImageIndex(index)}
-                    className={`overflow-hidden rounded-md border-2 bg-background transition-all duration-150 ${
-                      selectedImageIndex === index
-                        ? 'border-primary shadow-md scale-95'
-                        : 'border-transparent hover:border-primary/50 hover:scale-95'
-                    }`}
-                    aria-label={`Xem ảnh ${index + 1}`}
-                  >
-                    <img src={img} alt={`${room.title}-${index}`} className="h-12 w-full object-cover sm:h-14" />
-                  </button>
-                ))}
-              </div>
+            <h1 className="text-xl font-bold leading-snug sm:text-2xl">{room.title}</h1>
+            {fmtAddress(room.address) && (
+              <p className="flex items-start gap-1 mt-1 text-sm text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+                {fmtAddress(room.address)}
+              </p>
             )}
           </div>
 
-          {/* Cột thông tin */}
-          <div className="flex flex-col">
-            <CardHeader className="space-y-3 pb-3">
-              {/* Badges */}
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{roomTypeLabels[room.roomType] || room.roomType || 'Phòng trọ'}</Badge>
-                <Badge variant={room.isAvailable ? 'success' : 'muted'}>
-                  {room.isAvailable ? 'Còn trống' : 'Đã thuê'}
-                </Badge>
-                {distanceText && (
-                  <Badge variant="outline" className="gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {distanceText}
-                  </Badge>
-                )}
+          {/* Quick stats row */}
+          <div className="grid grid-cols-4 divide-x rounded-xl border bg-muted/30 text-center text-sm overflow-hidden">
+            {[
+              { label: 'Diện tích', val: `${room.area} m²` },
+              { label: 'Sức chứa', val: `${room.capacity} ng` },
+              { label: 'Lượt xem', val: room.viewCount || 0 },
+              { label: 'Ngày đăng', val: new Date(room.createdAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit' }) },
+            ].map(({ label, val }) => (
+              <div key={label} className="py-3">
+                <div className="text-[11px] text-muted-foreground">{label}</div>
+                <div className="font-semibold mt-0.5 text-xs sm:text-sm">{val}</div>
               </div>
+            ))}
+          </div>
 
-              <CardTitle className="text-2xl leading-tight">{room.title}</CardTitle>
-              <CardDescription className="leading-6">{formatAddress(room.address)}</CardDescription>
-              <p className="text-3xl font-bold text-primary">{formatCurrency(room.price)}</p>
-            </CardHeader>
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="w-full grid grid-cols-3 h-9">
+              <TabsTrigger value="info" className="text-xs gap-1"><House className="h-3 w-3" />Thông tin</TabsTrigger>
+              <TabsTrigger value="map" className="text-xs gap-1"><Navigation className="h-3 w-3" />Bản đồ</TabsTrigger>
+              <TabsTrigger value="reviews" className="text-xs gap-1"><Star className="h-3 w-3" />Đánh giá</TabsTrigger>
+            </TabsList>
 
-            <CardContent className="flex flex-col gap-4 pt-0 pb-5 flex-1">
-              {/* Stats nhỏ */}
-              <div className="grid grid-cols-3 gap-2 text-sm">
-                <div className="rounded-lg border bg-muted/40 p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Diện tích</p>
-                  <p className="mt-0.5 font-semibold">{room.area} m²</p>
-                </div>
-                <div className="rounded-lg border bg-muted/40 p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Sức chứa</p>
-                  <p className="mt-0.5 font-semibold">{room.capacity} người</p>
-                </div>
-                <div className="rounded-lg border bg-muted/40 p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Trạng thái</p>
-                  <p className={`mt-0.5 font-semibold text-xs ${room.isAvailable ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-                    {room.isAvailable ? 'Còn trống' : 'Đã thuê'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Nút chính */}
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={handleDirections} disabled={routing} className="gap-2">
-                  <Navigation className="h-4 w-4" />
-                  {routing ? 'Đang tìm đường...' : 'Chỉ đường'}
-                </Button>
-                <Button variant="secondary" onClick={handleShare} className="gap-2">
-                  <Share2 className="h-4 w-4" />
-                  Chia sẻ
-                </Button>
-              </div>
-
-              {/* Nút hành động */}
-              <div className="flex flex-wrap gap-2">
-                <FavoriteButton roomId={room._id} initialFavorited={isFavorited} />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (!user) { navigate('/login'); return }
-                    navigate(`/messages?to=${room.landlord?._id}&room=${room._id}`)
-                  }}
-                  className="gap-1.5"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Liên hệ chủ trọ
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (!user) { navigate('/login'); return }
-                    setBookingOpen(true)
-                  }}
-                  className="gap-1.5"
-                >
-                  <span>📅</span>
-                  Đặt lịch xem
-                </Button>
-                <CompareButton room={room} />
-                <ReportButton roomId={room._id} />
-              </div>
-
-              {/* Lộ trình summary */}
-              {routeSummary && (
-                <p className="text-sm text-muted-foreground rounded-md bg-muted/50 px-3 py-2">
-                  🗺️ Lộ trình: <span className="font-medium text-foreground">{routeSummary}</span>
+            {/* Tab: Thông tin */}
+            <TabsContent value="info" className="mt-3 space-y-3">
+              {/* Description */}
+              <div className="rounded-xl border bg-card p-4">
+                <h2 className="text-sm font-semibold mb-2">Mô tả</h2>
+                <p className="text-sm text-muted-foreground leading-6 whitespace-pre-line">
+                  {room.description || 'Chưa có mô tả.'}
                 </p>
+              </div>
+
+              {/* Amenities */}
+              {(room.amenities || []).length > 0 && (
+                <div className="rounded-xl border bg-card p-4">
+                  <h2 className="text-sm font-semibold mb-3">Tiện ích</h2>
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                    {(room.amenities || []).map((item) => {
+                      const cfg = AMENITY_CONFIG[item]
+                      const Icon = cfg?.icon
+                      return (
+                        <div key={item} className="flex items-center gap-2 rounded-lg border bg-muted/30 px-2.5 py-2 text-xs">
+                          {Icon && <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                          <span className="font-medium truncate">{cfg?.label || item}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               )}
-            </CardContent>
-          </div>
-        </div>
-      </Card>
 
-      {/* ── Tabs ──────────────────────────────────────────────────── */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="info">Thông tin</TabsTrigger>
-          <TabsTrigger value="map">Bản đồ</TabsTrigger>
-          <TabsTrigger value="reviews">Đánh giá</TabsTrigger>
-        </TabsList>
-
-        {/* Tab Thông tin */}
-        <TabsContent value="info">
-          <div className="grid gap-4 lg:grid-cols-3">
-            {/* Mô tả */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Mô tả chi tiết</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <p className="text-sm leading-7 text-muted-foreground">{room.description || 'Chưa có mô tả chi tiết.'}</p>
-
-                {/* Tiện ích */}
-                {(room.amenities || []).length > 0 && (
-                  <>
-                    <Separator />
-                    <div>
-                      <p className="mb-3 text-sm font-semibold">Tiện ích</p>
-                      <div className="flex flex-wrap gap-2">
-                        {(room.amenities || []).map((item) => {
-                          const config = amenityConfig[item]
-                          const Icon = config?.icon
-                          return (
-                            <Badge key={item} variant="outline" className="gap-1.5 px-3 py-1 font-normal">
-                              {Icon && <Icon className="h-3.5 w-3.5" />}
-                              {config?.label || item}
-                            </Badge>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Thông tin nhanh */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Thông tin nhanh</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <House className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Loại phòng</p>
-                    <p className="font-medium">{roomTypeLabels[room.roomType] || room.roomType || 'Chưa rõ'}</p>
-                  </div>
+              {/* Address */}
+              <div className="rounded-xl border bg-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-semibold">Địa chỉ</h2>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fmtAddress(room.address))}`}
+                    target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <SquareArrowOutUpRight className="h-3 w-3" />Google Maps
+                  </a>
                 </div>
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <Expand className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Diện tích</p>
-                    <p className="font-medium">{room.area} m²</p>
-                  </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  {room.address?.street && <><span className="text-muted-foreground">Đường:</span><span className="font-medium">{room.address.street}</span></>}
+                  {room.address?.ward && <><span className="text-muted-foreground">Phường/Xã:</span><span className="font-medium">{room.address.ward}</span></>}
+                  {room.address?.district && <><span className="text-muted-foreground">Quận/Huyện:</span><span className="font-medium">{room.address.district}</span></>}
+                  <span className="text-muted-foreground">Tỉnh:</span><span className="font-medium">{room.address?.city || 'Vĩnh Long'}</span>
                 </div>
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Sức chứa</p>
-                    <p className="font-medium">{room.capacity} người</p>
-                  </div>
-                </div>
-                <div className="rounded-lg border p-3">
-                  <p className="mb-1 text-xs text-muted-foreground">Địa chỉ chi tiết</p>
-                  <p className="font-medium text-sm">{room.address?.street || room.address || 'Chưa có'}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {[room.address?.ward, room.address?.district, room.address?.city || 'Vĩnh Long'].filter(Boolean).join(' — ')}
+              </div>
+            </TabsContent>
+
+            {/* Tab: Bản đồ */}
+            <TabsContent value="map" className="mt-3">
+              <div className="overflow-hidden rounded-xl border bg-card">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/20">
+                  <p className="text-xs font-medium">
+                    {userPos ? 'Vị trí bạn và phòng trọ' : 'Bật GPS để xem khoảng cách'}
                   </p>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />Phòng</span>
+                    {userPos && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-blue-500 inline-block" />Bạn</span>}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Tab Bản đồ */}
-        <TabsContent value="map">
-          <Card>
-            <CardHeader>
-              <CardTitle>Bản đồ vị trí</CardTitle>
-              <CardDescription>
-                {userPosition
-                  ? 'Hiển thị vị trí của bạn và phòng trọ trên bản đồ'
-                  : 'Bật GPS để xem khoảng cách và tuyến đường thực tế'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {roomPosition ? (
-                <MapContainer
-                  center={roomPosition}
-                  zoom={15}
-                  className="h-[400px] w-full rounded-lg"
-                  ref={mapRef}
-                >
-                  <TileLayer
-                    attribution='&copy; OpenStreetMap contributors'
-                    url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-                  />
-
-                  {/* Marker phòng */}
-                  <CircleMarker center={roomPosition} radius={11} pathOptions={{ color: '#dc2626', fillColor: '#ef4444', fillOpacity: 0.9, weight: 2 }}>
-                    <Popup>
-                      <strong>{room.title}</strong>
-                      <br />
-                      {formatCurrency(room.price)}
-                    </Popup>
-                  </CircleMarker>
-
-                  {/* Marker user + Polyline */}
-                  {userPosition && (
-                    <>
-                      <CircleMarker center={userPosition} radius={11} pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9, weight: 2 }}>
+                {roomPosition ? (
+                  <MapContainer center={roomPosition} zoom={15} className="h-[350px] w-full" ref={mapRef}>
+                    <TileLayer attribution='&copy; OpenStreetMap' url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' />
+                    <CircleMarker center={roomPosition} radius={10} pathOptions={{ color: '#dc2626', fillColor: '#ef4444', fillOpacity: 0.9, weight: 2 }}>
+                      <Popup><strong>{room.title}</strong><br />{fmtPrice(room.price)}</Popup>
+                    </CircleMarker>
+                    {userPos && <>
+                      <CircleMarker center={userPos} radius={9} pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9, weight: 2 }}>
                         <Popup>Vị trí của bạn</Popup>
                       </CircleMarker>
                       {routePositions.length > 1 && (
-                        <Polyline positions={routePositions} pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.8 }} />
+                        <Polyline positions={routePositions} pathOptions={{ color: '#2563eb', weight: 4, opacity: 0.7, dashArray: '8 4' }} />
                       )}
-                    </>
+                    </>}
+                  </MapContainer>
+                ) : (
+                  <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+                    Phòng chưa có toạ độ
+                  </div>
+                )}
+                {routeSummary && (
+                  <div className="flex items-center gap-2 border-t px-4 py-2 text-xs bg-blue-50 dark:bg-blue-950/30">
+                    <Navigation className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                    <span className="text-blue-700 dark:text-blue-300">Lộ trình: <strong>{routeSummary}</strong></span>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* Tab: Đánh giá */}
+            <TabsContent value="reviews" className="mt-3">
+              <div className="rounded-xl border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">Đánh giá sinh viên</h2>
+                  {room.averageRating > 0 && (
+                    <span className="flex items-center gap-1 text-sm font-bold text-amber-600">
+                      <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                      {room.averageRating.toFixed(1)}
+                      <span className="text-xs font-normal text-muted-foreground">({room.reviewCount})</span>
+                    </span>
                   )}
-                </MapContainer>
-              ) : (
-                <div className="flex h-48 items-center justify-center text-sm text-muted-foreground rounded-lg border border-dashed">
-                  Phòng này chưa có dữ liệu toạ độ trên bản đồ.
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                <Separator />
+                <ReviewSection roomId={room?._id} />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
 
-        {/* Tab Đánh giá */}
-        <TabsContent value="reviews">
-          <Card>
-            <CardHeader>
-              <CardTitle>Đánh giá của sinh viên</CardTitle>
-              <CardDescription>Chỉ hiển thị đánh giá đã được admin duyệt.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ReviewSection roomId={room?._id} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        {/* ── RIGHT: Sticky Sidebar ──────────────────────────────────── */}
+        <div className="space-y-3 lg:sticky sticky-top-content lg:self-start">
 
-      {/* Booking Dialog */}
-      <BookingDialog
-        open={bookingOpen}
-        onClose={() => setBookingOpen(false)}
-        roomId={room?._id}
-        roomTitle={room?.title}
-      />
+          {/* Price card */}
+          <div className="rounded-xl border bg-card p-4 space-y-4">
+            <div>
+              <span className="text-2xl font-extrabold text-primary">{fmtPrice(room.price)}</span>
+              <span className="text-sm text-muted-foreground ml-1">/tháng</span>
+            </div>
+
+            {/* CTA buttons */}
+            <div className="space-y-2">
+              <Button className="w-full gap-2" onClick={goBook}>
+                <Calendar className="h-4 w-4" />Đặt lịch xem phòng
+              </Button>
+              <Button variant="outline" className="w-full gap-2" onClick={goMsg}>
+                <MessageCircle className="h-4 w-4" />Nhắn tin chủ trọ
+              </Button>
+            </div>
+
+            <Separator />
+
+            {/* Secondary actions */}
+            <div className="flex flex-wrap gap-2">
+              <FavoriteButton roomId={room._id} initialFavorited={isFavorited} size="sm" />
+              <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs rounded-full" onClick={handleShare}>
+                <Share2 className="h-3.5 w-3.5" />Chia sẻ
+              </Button>
+              <Button
+                variant="ghost" size="sm"
+                className="gap-1.5 h-8 text-xs rounded-full"
+                onClick={handleDirections} disabled={routing}
+              >
+                <Navigation className="h-3.5 w-3.5" />
+                {routing ? 'Đang tìm...' : 'Chỉ đường'}
+              </Button>
+              <CompareButton room={room} />
+              <ReportButton roomId={room._id} />
+            </div>
+          </div>
+
+          {/* Landlord card */}
+          {room.landlord && (
+            <div className="rounded-xl border bg-card p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <Link to={`/landlord/${room.landlord.username || room.landlord._id}`}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm hover:ring-2 hover:ring-primary/40 transition-all">
+                  {(room.landlord.name || 'C')[0].toUpperCase()}
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] text-muted-foreground">Chủ trọ</p>
+                  <Link to={`/landlord/${room.landlord.username || room.landlord._id}`}
+                    className="text-sm font-semibold truncate block hover:text-primary transition-colors">
+                    {room.landlord.name || 'Không rõ'}
+                  </Link>
+                  {room.landlord.phone && <p className="text-[11px] text-muted-foreground">{room.landlord.phone}</p>}
+                </div>
+                <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs rounded-full shrink-0" onClick={goMsg}>
+                  <MessageCircle className="h-3 w-3" />Chat
+                </Button>
+              </div>
+              <Link to={`/landlord/${room.landlord.username || room.landlord._id}`}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-1.5 text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                Xem tất cả phòng của chủ trọ →
+              </Link>
+            </div>
+          )}
+
+
+          {/* Route summary */}
+          {routeSummary && (
+            <div className="flex items-center gap-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-3 py-2.5 text-xs">
+              <Navigation className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+              <span className="text-blue-700 dark:text-blue-300 font-medium">{routeSummary}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      <BookingDialog open={bookingOpen} onClose={() => setBookingOpen(false)} roomId={room?._id} roomTitle={room?.title} />
+      {panoramaSrc && <PanoramaViewer src={panoramaSrc} onClose={() => setPanoramaSrc(null)} />}
     </div>
   )
 }

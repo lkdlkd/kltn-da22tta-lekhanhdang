@@ -24,6 +24,19 @@ const createSendToken = (user, statusCode, res) => {
   sendResponse(res, statusCode, true, 'Thao tác thành công', { token, user: userResponse })
 }
 
+// Helper: sinh username unique từ email
+async function generateUsername(email) {
+  // Lấy phần trước @, chuyển về lowercase, bỏ ký tự không hợp lệ
+  const base = email.split('@')[0].toLowerCase().replace(/[^a-z0-9._-]/g, '')
+  let username = base
+  let attempt = 0
+  while (await User.exists({ username })) {
+    attempt += 1
+    username = `${base}_${attempt}`
+  }
+  return username
+}
+
 // POST /api/auth/register
 exports.register = async (req, res) => {
   try {
@@ -35,20 +48,23 @@ exports.register = async (req, res) => {
       return sendResponse(res, 409, false, 'Email đã được sử dụng')
     }
 
+    const username = await generateUsername(email)
+
     // Sinh viên: tự động xác thực, đăng nhập luôn
     if (userRole === 'student') {
       const user = await User.create({
         name,
+        username,
         email,
         password,
         role: 'student',
-        isEmailVerified: true, // sinh viên không cần xác minh email
+        isEmailVerified: true,
       })
       return createSendToken(user, 201, res)
     }
 
     // Chủ trọ: cần xác minh email trước khi sử dụng
-    const user = await User.create({ name, email, password, role: 'landlord' })
+    const user = await User.create({ name, username, email, password, role: 'landlord' })
 
     const verifyToken = user.createEmailVerifyToken()
     await user.save({ validateBeforeSave: false })
@@ -64,7 +80,6 @@ exports.register = async (req, res) => {
                <p>Link có hiệu lực trong <strong>24 giờ</strong>.</p>`,
       })
     } catch (emailErr) {
-      // Xoá user nếu gửi mail thất bại để tránh tài khoản treo
       await User.findByIdAndDelete(user._id)
       return sendResponse(res, 500, false, 'Không thể gửi email xác thực. Vui lòng thử lại.')
     }

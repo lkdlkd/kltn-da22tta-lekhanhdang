@@ -8,3 +8,6 @@ export const updateProfileApi = (formData) =>
   })
 
 export const changePasswordApi = (data) => axiosInstance.put('/api/users/change-password', data)
+
+// Public — không cần đăng nhập
+export const getLandlordPublicProfileApi = (username) => axiosInstance.get(`/api/users/${username}/public`)

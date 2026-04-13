@@ -10,6 +10,14 @@ const userSchema = new mongoose.Schema(
       trim: true,
       minlength: [2, 'Tên tối thiểu 2 ký tự'],
     },
+    username: {
+      type: String,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      match: [/^[a-z0-9._-]+$/, 'Username chỉ chứa chữ cái thường, số, dấu chấm và gạch nối'],
+      sparse: true, // cho phép null (user cũ chưa có username)
+    },
     email: {
       type: String,
       required: [true, 'Email là bắt buộc'],

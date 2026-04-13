@@ -10,6 +10,10 @@ exports.adminGetRooms = async (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 20, 50)
     const query = {}
     if (req.query.status) query.status = req.query.status
+    if (req.query.search) {
+      const re = new RegExp(req.query.search, 'i')
+      query.$or = [{ title: re }, { 'address.district': re }, { 'address.city': re }]
+    }
 
     const [rooms, total] = await Promise.all([
       Room.find(query)
@@ -64,6 +68,78 @@ exports.adminRejectRoom = async (req, res) => {
       io: req.app.get('io'),
     })
     return sendResponse(res, 200, true, 'Đã từ chối phòng', { room })
+  } catch (error) {
+    return sendResponse(res, 500, false, error.message)
+  }
+}
+
+// PUT /api/admin/rooms/:id/hide — Ẩn phòng vi phạm (giữ data, không đổi isAvailable)
+exports.adminHideRoom = async (req, res) => {
+  try {
+    const room = await Room.findByIdAndUpdate(
+      req.params.id,
+      { status: 'flagged' },   // chỉ ẩn, KHÔNG đổi isAvailable
+      { new: true }
+    )
+    if (!room) return sendResponse(res, 404, false, 'Không tìm thấy phòng')
+
+    await createNotification({
+      userId: room.landlord,
+      type: 'system',
+      title: '⚠️ Phòng bị ẩn',
+      body: `Phòng "${room.title}" đã bị ẩn khỏi danh sách tìm kiếm công khai. Lý do: ${req.body.reason || 'Vi phạm nội quy.'}`,
+      link: '/landlord/rooms',
+      io: req.app.get('io'),
+    })
+    return sendResponse(res, 200, true, 'Đã ẩn phòng', { room })
+  } catch (error) {
+    return sendResponse(res, 500, false, error.message)
+  }
+}
+
+// PUT /api/admin/rooms/:id/restore — Khôi phục phòng flagged về approved
+exports.adminRestoreRoom = async (req, res) => {
+  try {
+    const room = await Room.findByIdAndUpdate(
+      req.params.id,
+      { status: 'approved' },
+      { new: true }
+    )
+    if (!room) return sendResponse(res, 404, false, 'Không tìm thấy phòng')
+
+    await createNotification({
+      userId: room.landlord,
+      type: 'room_approved',
+      title: '✅ Phòng đã được khôi phục',
+      body: `Phòng "${room.title}" đã được admin duyệt lại và hiển thị công khai trở lại.`,
+      link: `/rooms/${room.slug}`,
+      io: req.app.get('io'),
+    })
+    return sendResponse(res, 200, true, 'Đã khôi phục phòng', { room })
+  } catch (error) {
+    return sendResponse(res, 500, false, error.message)
+  }
+}
+
+// DELETE /api/admin/rooms/:id — Xóa hẳn phòng
+exports.adminDeleteRoom = async (req, res) => {
+  try {
+    const room = await Room.findById(req.params.id)
+    if (!room) return sendResponse(res, 404, false, 'Không tìm thấy phòng')
+
+    const landlordId = room.landlord
+    const roomTitle = room.title
+    await Room.findByIdAndDelete(req.params.id)
+
+    await createNotification({
+      userId: landlordId,
+      type: 'system',
+      title: '🗑️ Phòng bị xóa',
+      body: `Phòng "${roomTitle}" đã bị admin xóa khỏi hệ thống. Lý do: ${req.body.reason || 'Vi phạm nghiêm trọng.'}`,
+      link: '/landlord/rooms',
+      io: req.app.get('io'),
+    })
+    return sendResponse(res, 200, true, 'Đã xóa phòng', {})
   } catch (error) {
     return sendResponse(res, 500, false, error.message)
   }

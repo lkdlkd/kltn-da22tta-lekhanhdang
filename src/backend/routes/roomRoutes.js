@@ -1,5 +1,5 @@
 const express = require('express')
-const { authenticate, authorize } = require('../middlewares/auth')
+const { authenticate, authorize, authenticateOptional } = require('../middlewares/auth')
 const {
 	uploadRoomImages,
 	uploadRoomImagesToCloudinary,
@@ -20,11 +20,11 @@ const {
 const router = express.Router()
 
 router.get('/', getRooms)
-router.get('/slug/:slug', getRoomBySlug)
+router.get('/slug/:slug', authenticateOptional, getRoomBySlug)
 router.get('/nearby', getNearbyRooms)
 router.get('/my-rooms', authenticate, authorize('landlord', 'admin'), getMyRooms)
 router.get('/:id/distance', getDistanceToRoom)
-router.get('/:id', getRoomById)
+router.get('/:id', authenticateOptional, getRoomById)
 
 router.post(
 	'/',

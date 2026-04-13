@@ -85,23 +85,43 @@ exports.adminGetReports = async (req, res) => {
 // PUT /api/admin/reports/:id/resolve
 exports.adminResolveReport = async (req, res) => {
   try {
-    const { action } = req.body // 'dismiss' | 'remove_room'
+    const { action } = req.body // 'dismiss' | 'hide_room' | 'remove_room'
     const report = await Report.findById(req.params.id).populate('room')
     if (!report) return sendResponse(res, 404, false, 'Không tìm thấy báo cáo')
 
     report.status = 'resolved'
+    report.resolvedAction = action
+    report.resolvedAt = new Date()
     await report.save()
 
-    if (action === 'remove_room' && report.room) {
-      await Room.findByIdAndUpdate(report.room._id, { status: 'rejected' })
+    if (action === 'hide_room' && report.room) {
+      // Ẩn phòng (giữ data, không hiển thị công khai)
+      await Room.findByIdAndUpdate(report.room._id, { status: 'flagged' })
+      // Thông báo cho chủ trọ
       await createNotification({
         userId: report.room.landlord,
         type: 'system',
-        title: 'Phòng bị gỡ do vi phạm',
-        body: `Phòng "${report.room.title}" đã bị gỡ vì nhận nhiều báo cáo vi phạm.`,
+        title: '⚠️ Phòng bị ẩn do vi phạm',
+        body: `Phòng "${report.room.title}" đã bị ẩn khỏi danh sách vì nhận nhiều báo cáo vi phạm. Vui lòng liên hệ admin để được hỗ trợ.`,
         link: '/landlord/rooms',
         io: req.app.get('io'),
       })
+      // Đánh dấu toàn bộ report của phòng này là resolved
+      await Report.updateMany({ room: report.room._id, status: { $ne: 'resolved' } }, { status: 'resolved' })
+    }
+
+    if (action === 'remove_room' && report.room) {
+      // Xóa hẳn phòng
+      await Room.findByIdAndDelete(report.room._id)
+      await createNotification({
+        userId: report.room.landlord,
+        type: 'system',
+        title: '🗑️ Phòng bị xóa do vi phạm',
+        body: `Phòng "${report.room.title}" đã bị xóa khỏi hệ thống vì vi phạm nghiêm trọng.`,
+        link: '/landlord/rooms',
+        io: req.app.get('io'),
+      })
+      await Report.updateMany({ room: report.room._id, status: { $ne: 'resolved' } }, { status: 'resolved' })
     }
 
     return sendResponse(res, 200, true, 'Đã xử lý báo cáo', { report })
@@ -109,3 +129,4 @@ exports.adminResolveReport = async (req, res) => {
     return sendResponse(res, 500, false, error.message)
   }
 }
+
