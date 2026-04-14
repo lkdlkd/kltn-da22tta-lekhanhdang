@@ -5,20 +5,21 @@ const { uploadBufferToCloudinary } = require('../services/cloudinaryService')
 const storage = multer.memoryStorage()
 
 const imageMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+const videoMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm']
 
 const fileFilter = (req, file, cb) => {
-  if (!imageMimeTypes.includes(file.mimetype)) {
-    return cb(new Error('Chỉ chấp nhận file ảnh (jpg, jpeg, png, webp)'))
+  if ([...imageMimeTypes, ...videoMimeTypes].includes(file.mimetype)) {
+    return cb(null, true)
   }
-  cb(null, true)
+  return cb(new Error('Chỉ chấp nhận file ảnh (jpg, png, webp) hoặc video (mp4, mov, avi, webm)'))
 }
 
 const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 8 * 1024 * 1024,
-    files: 20,
+    fileSize: 50 * 1024 * 1024, // 50MB (videos can be large)
+    files: 25,
   },
 })
 
@@ -43,17 +44,23 @@ const uploadRoomImagesToCloudinary = async (req, res, next) => {
   try {
     const imageFiles = req.files?.images || []
     const image360Files = req.files?.images360 || []
+    const videoFiles = req.files?.videos || []
 
     const uploadedImages = await Promise.all(
-      imageFiles.map((file) => uploadBufferToCloudinary(file.buffer, 'rooms/images'))
+      imageFiles.map((file) => uploadBufferToCloudinary(file.buffer, 'rooms/images', 'image'))
     )
 
     const uploadedImages360 = await Promise.all(
-      image360Files.map((file) => uploadBufferToCloudinary(file.buffer, 'rooms/images360'))
+      image360Files.map((file) => uploadBufferToCloudinary(file.buffer, 'rooms/images360', 'image'))
+    )
+
+    const uploadedVideos = await Promise.all(
+      videoFiles.map((file) => uploadBufferToCloudinary(file.buffer, 'rooms/videos', 'video'))
     )
 
     const bodyImages = parseMaybeJsonArray(req.body.images)
     const bodyImages360 = parseMaybeJsonArray(req.body.images360)
+    const bodyVideos = parseMaybeJsonArray(req.body.videos)
 
     req.body.images = [
       ...bodyImages,
@@ -65,9 +72,14 @@ const uploadRoomImagesToCloudinary = async (req, res, next) => {
       ...uploadedImages360.map((item) => item.secure_url),
     ]
 
+    req.body.videos = [
+      ...bodyVideos,
+      ...uploadedVideos.map((item) => item.secure_url),
+    ]
+
     next()
   } catch (error) {
-    return sendResponse(res, 500, false, 'Upload ảnh thất bại', null, error.message)
+    return sendResponse(res, 500, false, 'Upload file thất bại', null, error.message)
   }
 }
 
@@ -87,6 +99,7 @@ module.exports = {
   uploadRoomImages: upload.fields([
     { name: 'images', maxCount: 12 },
     { name: 'images360', maxCount: 8 },
+    { name: 'videos', maxCount: 3 },
   ]),
   uploadRoomImagesToCloudinary,
   handleUploadError,

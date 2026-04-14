@@ -17,6 +17,7 @@ function formatCurrency(value) {
 function formatAddress(address) {
   if (!address) return ''
   if (typeof address === 'string') return address
+  // legacy object fallback
   return address.fullAddress || [address.street, address.ward, address.district, address.city].filter(Boolean).join(', ')
 }
 

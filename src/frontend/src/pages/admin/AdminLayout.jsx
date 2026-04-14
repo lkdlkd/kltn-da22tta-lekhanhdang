@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, Home, Users, Star, Shield, Flag } from 'lucide-react'
+import { LayoutDashboard, Home, Users, MessageSquare, Shield, Flag } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/rooms', label: 'Phòng trọ', icon: Home },
   { to: '/admin/users', label: 'Người dùng', icon: Users },
-  { to: '/admin/reviews', label: 'Đánh giá', icon: Star },
+  { to: '/admin/comments', label: 'Bình luận', icon: MessageSquare },
   { to: '/admin/reports', label: 'Báo cáo', icon: Flag },
 ]
 

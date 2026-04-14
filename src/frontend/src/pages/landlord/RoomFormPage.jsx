@@ -5,7 +5,7 @@ import {
   ArrowLeft, Save, MapPinned, Image as ImageIcon, FileText,
   Wifi, Wind, Flame, Package, WashingMachine, ChefHat,
   Car, ShieldCheck, Camera, ArrowUp, Trees, Sofa, Bath, Zap,
-  CheckCircle2,
+  CheckCircle2, Video,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createRoomApi, getRoomByIdApi, updateRoomApi } from '@/services/roomService'
@@ -26,27 +26,27 @@ const roomTypeOptions = [
 ]
 
 const amenityOptions = [
-  { value: 'wifi',              label: 'Wifi',             icon: Wifi },
-  { value: 'điều_hòa',         label: 'Điều hòa',         icon: Wind },
-  { value: 'nóng_lạnh',        label: 'Nóng lạnh',        icon: Flame },
-  { value: 'tủ_lạnh',          label: 'Tủ lạnh',          icon: Package },
-  { value: 'máy_giặt',         label: 'Máy giặt',         icon: WashingMachine },
-  { value: 'bếp',              label: 'Bếp',              icon: ChefHat },
-  { value: 'chỗ_để_xe',        label: 'Chỗ để xe',        icon: Car },
-  { value: 'an_ninh',          label: 'An ninh',          icon: ShieldCheck },
-  { value: 'camera',           label: 'Camera',           icon: Camera },
-  { value: 'thang_máy',        label: 'Thang máy',        icon: ArrowUp },
-  { value: 'ban_công',         label: 'Ban công',         icon: Trees },
-  { value: 'nội_thất',         label: 'Nội thất',         icon: Sofa },
-  { value: 'vệ_sinh_riêng',    label: 'Vệ sinh riêng',   icon: Bath },
-  { value: 'điện_nước_riêng',  label: 'Điện nước riêng', icon: Zap },
+  { value: 'wifi', label: 'Wifi', icon: Wifi },
+  { value: 'điều_hòa', label: 'Điều hòa', icon: Wind },
+  { value: 'nóng_lạnh', label: 'Nóng lạnh', icon: Flame },
+  { value: 'tủ_lạnh', label: 'Tủ lạnh', icon: Package },
+  { value: 'máy_giặt', label: 'Máy giặt', icon: WashingMachine },
+  { value: 'bếp', label: 'Bếp', icon: ChefHat },
+  { value: 'chỗ_để_xe', label: 'Chỗ để xe', icon: Car },
+  { value: 'an_ninh', label: 'An ninh', icon: ShieldCheck },
+  { value: 'camera', label: 'Camera', icon: Camera },
+  { value: 'thang_máy', label: 'Thang máy', icon: ArrowUp },
+  { value: 'ban_công', label: 'Ban công', icon: Trees },
+  { value: 'nội_thất', label: 'Nội thất', icon: Sofa },
+  { value: 'vệ_sinh_riêng', label: 'Vệ sinh riêng', icon: Bath },
+  { value: 'điện_nước_riêng', label: 'Điện nước riêng', icon: Zap },
 ]
 
 // ── Step Indicator ─────────────────────────────────────────────────────
 const STEPS = [
   { label: 'Thông tin cơ bản', icon: FileText },
   { label: 'Vị trí & địa chỉ', icon: MapPinned },
-  { label: 'Tiện ích & ảnh',   icon: ImageIcon },
+  { label: 'Tiện ích & ảnh', icon: ImageIcon },
 ]
 
 function StepIndicator() {
@@ -73,10 +73,23 @@ function StepIndicator() {
   )
 }
 
-// ── Utility functions ──────────────────────────────────────────────────
-const isWardLike = (value = '') => /^(phường|xã|thị trấn|ward|commune|township)/i.test(value.trim())
-const isDistrictLike = (value = '') => /^(quận|huyện|thành phố|thị xã|district|city|municipality)/i.test(value.trim())
-const pickFirst = (...values) => values.find((value) => typeof value === 'string' && value.trim()) || ''
+/**
+ * Chuẩn hóa địa chỉ Việt Nam từ Nominatim reverse geocode.
+ *
+ * Nominatim không cố định field — áp dụng priority chain cho từng cấp:
+ *
+ *  [street]   house_number + road  »  pedestrian/footway/path  »  name  »  hamlet  »  ''
+ *  [ward]     neighbourhood  »  suburb  »  county* »  quarter  »  village*  »  ''
+ *  [district] district  »  city  »  town  »  county*  »  municipality  »  state_district  »  ''
+ *  [city]     state  »  ''   (strip tiền tố "Tỉnh "/"Thành phố ")
+ *
+ *  (*) county thường = Phường/Xã trong VN → ưu tiên ward; nếu không ward-like thì sang district.
+ *  (*) village khi không có ward-like nào → có thể là thôn nhỏ → ward fallback.
+ *
+ * Thực tế quan sát được từ Vĩnh Long:
+ *   { road, county:"Phường Hòa Thuận", state:"Tỉnh Vĩnh Long" }
+ *   { road, city:"Trà Vinh", county:"Phường Trà Vinh", state:"Tỉnh Vĩnh Long" }
+ */
 
 const reverseGeocodeLocation = async (lat, lng) => {
   const response = await fetch(
@@ -84,15 +97,12 @@ const reverseGeocodeLocation = async (lat, lng) => {
   )
   if (!response.ok) throw new Error('Không thể xác định địa chỉ từ vị trí đã chọn')
   const data = await response.json()
-  const address = data.address || {}
-  const roadName = [address.house_number, address.road, address.quarter].filter(Boolean).join(', ').trim()
-  const street = pickFirst(roadName, address.name, address.residential, address.amenity, address.city, address.town, address.village, address.suburb, data.display_name)
-  const wardCandidate = pickFirst(address.county, address.suburb, address.neighbourhood, address.city_district)
-  const ward = pickFirst(isWardLike(wardCandidate) ? wardCandidate : '', address.suburb, address.neighbourhood, address.city_district, isWardLike(address.county) ? address.county : '')
-  const district = pickFirst(address.town, address.village, address.city, address.city_district, address.municipality, isDistrictLike(address.county) ? address.county : '', address.state_district)
-  const city = pickFirst(address.city, address.town, address.village, address.state, 'Vĩnh Long')
-  const fullAddress = pickFirst(data.display_name, [street, ward, district, city].filter(Boolean).join(', '))
-  return { street, district, ward, city, fullAddress }
+
+  // Lấy display_name từ Nominatim, bỏ ", Việt Nam" cuối chuỗi
+  const fullAddress = (data.display_name || '')
+    .replace(/,\s*Việt Nam$/i, '').trim()
+
+  return { fullAddress }
 }
 
 // ── Map sub-components ─────────────────────────────────────────────────
@@ -159,25 +169,29 @@ export default function RoomFormPage() {
     area: '',
     capacity: '1',
     roomType: 'phòng_trọ',
-    address: { street: '', ward: '', district: '', city: 'Vĩnh Long', fullAddress: '' },
+    address: '',
     isAvailable: true,
     amenities: [],
     location: null,
   })
   const [existingImages, setExistingImages] = useState([])
   const [existingImages360, setExistingImages360] = useState([])
+  const [existingVideos, setExistingVideos] = useState([])
   const [imageFiles, setImageFiles] = useState([])
   const [image360Files, setImage360Files] = useState([])
+  const [videoFiles, setVideoFiles] = useState([])
 
   const imagePreviewUrls = useMemo(() => imageFiles.map((file) => URL.createObjectURL(file)), [imageFiles])
   const image360PreviewUrls = useMemo(() => image360Files.map((file) => URL.createObjectURL(file)), [image360Files])
+  const videoPreviewUrls = useMemo(() => videoFiles.map((file) => URL.createObjectURL(file)), [videoFiles])
 
   useEffect(() => {
     return () => {
       imagePreviewUrls.forEach((url) => URL.revokeObjectURL(url))
       image360PreviewUrls.forEach((url) => URL.revokeObjectURL(url))
+      videoPreviewUrls.forEach((url) => URL.revokeObjectURL(url))
     }
-  }, [imagePreviewUrls, image360PreviewUrls])
+  }, [imagePreviewUrls, image360PreviewUrls, videoPreviewUrls])
 
   useEffect(() => {
     if (!isEditMode) return
@@ -196,14 +210,15 @@ export default function RoomFormPage() {
           capacity: String(room.capacity || 1),
           roomType: room.roomType || 'phòng_trọ',
           address: typeof room.address === 'string'
-            ? { street: room.address, ward: '', district: '', city: 'Vĩnh Long', fullAddress: room.address }
-            : { street: room.address?.street || '', ward: room.address?.ward || '', district: room.address?.district || '', city: room.address?.city || 'Vĩnh Long', fullAddress: room.address?.fullAddress || '' },
+            ? room.address
+            : (room.address?.fullAddress || [room.address?.street, room.address?.ward, room.address?.district, room.address?.city].filter(Boolean).join(', ') || ''),
           isAvailable: room.isAvailable ?? true,
           amenities: room.amenities || [],
           location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
         })
         setExistingImages(room.images || [])
         setExistingImages360(room.images360 || [])
+        setExistingVideos(room.videos || [])
       } catch (error) {
         toast.error(error.response?.data?.message || 'Không thể tải dữ liệu phòng')
       } finally {
@@ -215,11 +230,6 @@ export default function RoomFormPage() {
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target
-    if (name.startsWith('address.')) {
-      const key = name.split('.')[1]
-      setForm((prev) => ({ ...prev, address: { ...prev.address, [key]: value } }))
-      return
-    }
     setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
   }
 
@@ -239,14 +249,7 @@ export default function RoomFormPage() {
       setForm((prev) => ({
         ...prev,
         location,
-        address: {
-          ...prev.address,
-          street: resolved.street || prev.address.street,
-          ward: resolved.ward || prev.address.ward,
-          district: resolved.district || prev.address.district,
-          city: resolved.city || prev.address.city,
-          fullAddress: resolved.fullAddress || prev.address.fullAddress,
-        },
+        address: resolved.fullAddress,
       }))
     } catch (error) {
       toast.error(error.message || 'Không thể tự động điền địa chỉ từ vị trí')
@@ -290,15 +293,17 @@ export default function RoomFormPage() {
       payload.append('area', form.area)
       payload.append('capacity', form.capacity)
       payload.append('roomType', form.roomType)
-      payload.append('address', JSON.stringify(form.address))
+      payload.append('address', form.address)
       payload.append('lat', String(form.location.lat))
       payload.append('lng', String(form.location.lng))
       payload.append('isAvailable', String(form.isAvailable))
       payload.append('amenities', JSON.stringify(form.amenities))
       payload.append('images', JSON.stringify(existingImages))
       payload.append('images360', JSON.stringify(existingImages360))
+      payload.append('videos', JSON.stringify(existingVideos))
       imageFiles.forEach((file) => payload.append('images', file))
       image360Files.forEach((file) => payload.append('images360', file))
+      videoFiles.forEach((file) => payload.append('videos', file))
 
       if (isEditMode) {
         await updateRoomApi(id, payload)
@@ -471,27 +476,20 @@ export default function RoomFormPage() {
               )}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="address.street">Địa chỉ chi tiết <span className="text-destructive">*</span></Label>
-                <Input id="address.street" name="address.street" value={form.address.street} onChange={handleChange} placeholder="VD: 123 Đường Nguyễn Huệ" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address.ward">Phường/Xã</Label>
-                <Input id="address.ward" name="address.ward" value={form.address.ward} onChange={handleChange} placeholder="VD: Phường 1" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address.district">Quận/Huyện</Label>
-                <Input id="address.district" name="address.district" value={form.address.district} onChange={handleChange} placeholder="VD: TP. Vĩnh Long" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address.city">Tỉnh/Thành phố</Label>
-                <Input id="address.city" name="address.city" value={form.address.city} onChange={handleChange} />
-              </div>
-              <div className="space-y-2 md:col-span-3">
-                <Label htmlFor="address.fullAddress">Địa chỉ đầy đủ (tự động điền)</Label>
-                <Input id="address.fullAddress" name="address.fullAddress" value={form.address.fullAddress} onChange={handleChange} placeholder="Tự động điền khi chọn vị trí trên bản đồ" />
-              </div>
+            {/* Địa chỉ — 1 ô duy nhất */}
+            <div className="space-y-2">
+              <Label htmlFor="address">
+                Địa chỉ đầy đủ <span className="text-destructive">*</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">(tự động điền khi chọn bản đồ, hoặc nhập thủ công)</span>
+              </Label>
+              <Input
+                id="address"
+                name="address"
+                value={form.address}
+                onChange={handleChange}
+                placeholder="VD: 123 Đường Nguyễn Huệ, Phường 1, Vĩnh Long..."
+                required
+              />
             </div>
 
             {/* Bản đồ */}
@@ -618,7 +616,71 @@ export default function RoomFormPage() {
               </label>
             </div>
 
-            {/* Preview */}
+            {/* Upload Video phòng trọ */}
+            <div className="space-y-2">
+              <Label htmlFor="videos">
+                Video phòng trọ
+                <span className="ml-2 text-xs font-normal text-muted-foreground">(tuỳ chọn, tối đa 3 video MP4)</span>
+              </Label>
+              <label
+                htmlFor="videos"
+                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/50"
+              >
+                <Video className="h-8 w-8 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Nhấn để chọn video</p>
+                  <p className="text-xs text-muted-foreground">MP4, MOV, WEBM — tối đa 50MB mỗi file</p>
+                </div>
+                <input
+                  id="videos"
+                  type="file"
+                  accept="video/mp4,video/quicktime,video/webm,video/x-msvideo"
+                  multiple
+                  className="sr-only"
+                  onChange={(event) => setVideoFiles(Array.from(event.target.files || []))}
+                />
+              </label>
+            </div>
+
+            {/* Preview videos đã lưu (edit mode) */}
+            {existingVideos.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Video đã lưu</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {existingVideos.map((url, index) => (
+                    <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-lg border bg-muted">
+                      <video src={url} controls className="h-40 w-full object-cover" />
+                      <Button
+                        type="button" variant="destructive" size="sm"
+                        onClick={() => setExistingVideos((prev) => prev.filter((_, i) => i !== index))}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >Xoá</Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Preview video mới chọn */}
+            {videoPreviewUrls.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Video mới ({videoPreviewUrls.length})</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {videoPreviewUrls.map((url, index) => (
+                    <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-lg border bg-muted">
+                      <video src={url} controls className="h-40 w-full object-cover" />
+                      <Button
+                        type="button" variant="destructive" size="sm"
+                        onClick={() => setVideoFiles((prev) => prev.filter((_, i) => i !== index))}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >Xoá</Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Preview image */}
             <PreviewList
               title="Ảnh thường đã lưu"
               urls={existingImages}

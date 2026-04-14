@@ -40,7 +40,7 @@ import AdminLayout from '@/pages/admin/AdminLayout'
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage'
 import AdminRoomsPage from '@/pages/admin/AdminRoomsPage'
 import AdminUsersPage from '@/pages/admin/AdminUsersPage'
-import AdminReviewsPage from '@/pages/admin/AdminReviewsPage'
+import AdminCommentsPage from '@/pages/admin/AdminCommentsPage'
 import AdminReportsPage from '@/pages/admin/AdminReportsPage'
 
 const NotFoundPage = () => (
@@ -119,7 +119,7 @@ export default function App() {
               <Route path="/admin" element={<AdminDashboardPage />} />
               <Route path="/admin/rooms" element={<AdminRoomsPage />} />
               <Route path="/admin/users" element={<AdminUsersPage />} />
-              <Route path="/admin/reviews" element={<AdminReviewsPage />} />
+              <Route path="/admin/comments" element={<AdminCommentsPage />} />
               <Route path="/admin/reports" element={<AdminReportsPage />} />
             </Route>
           </Route>

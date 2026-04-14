@@ -49,11 +49,13 @@ const roomSchema = new mongoose.Schema(
       default: [],
     },
     address: {
-      street: { type: String, required: true },
-      ward: { type: String },
-      district: { type: String },
-      city: { type: String, default: 'Vĩnh Long' },
-      fullAddress: { type: String },
+      type: String,
+      required: [true, 'Địa chỉ là bắt buộc'],
+      default: '',
+    },
+    videos: {
+      type: [String],
+      default: [],
     },
     location: {
       type: {
@@ -108,7 +110,7 @@ const roomSchema = new mongoose.Schema(
 roomSchema.index({ location: '2dsphere' })
 
 // Text search index
-roomSchema.index({ title: 'text', description: 'text', 'address.fullAddress': 'text' })
+roomSchema.index({ title: 'text', description: 'text', address: 'text' })
 
 // Tự động tạo slug trước khi lưu
 roomSchema.pre('save', async function (next) {

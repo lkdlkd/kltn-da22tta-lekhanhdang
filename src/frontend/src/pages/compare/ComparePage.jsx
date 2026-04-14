@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import { compareRoomsApi } from '@/services/compareService'
 import { useCompareStore } from '@/store/compareStore'
 import { FavoriteButton } from '@/components/rooms/FavoriteButton'
-import { StarRating } from '@/components/rooms/StarRating'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -169,20 +168,6 @@ export default function ComparePage() {
                     <Cell key={room._id} highlight={room.area === maxArea}>
                       {room.area} m²
                       {room.area === maxArea && <span className="ml-1.5 text-xs text-blue-600">✓ Rộng nhất</span>}
-                    </Cell>
-                  ))}
-            </Row>
-
-            {/* Đánh giá */}
-            <Row label="Đánh giá">
-              {loading
-                ? Array.from({ length: compareList.length }).map((_, i) => <Cell key={i}><Skeleton className="h-5 w-24" /></Cell>)
-                : rooms.map((room) => (
-                    <Cell key={room._id}>
-                      <div className="flex items-center gap-1.5">
-                        <StarRating value={Math.round(room.averageRating || 0)} readOnly size="sm" />
-                        <span className="text-xs text-muted-foreground">({room.reviewCount || 0})</span>
-                      </div>
                     </Cell>
                   ))}
             </Row>

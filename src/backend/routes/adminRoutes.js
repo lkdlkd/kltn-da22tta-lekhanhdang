@@ -6,7 +6,7 @@ const {
   adminGetUsers, adminBanUser, adminUnbanUser,
   adminGetStats,
 } = require('../controllers/adminController')
-const { adminGetReviews, adminApproveReview, adminRejectReview, adminDeleteReview } = require('../controllers/reviewController')
+const { adminGetComments, adminApproveComment, adminRejectComment, adminDeleteComment } = require('../controllers/commentController')
 
 const router = express.Router()
 router.use(authenticate, authorize('admin'))
@@ -24,9 +24,9 @@ router.get('/users', adminGetUsers)
 router.put('/users/:id/ban', adminBanUser)
 router.put('/users/:id/unban', adminUnbanUser)
 
-router.get('/reviews', adminGetReviews)
-router.put('/reviews/:id/approve', adminApproveReview)
-router.put('/reviews/:id/reject', adminRejectReview)
-router.delete('/reviews/:id', adminDeleteReview)
+router.get('/comments', adminGetComments)
+router.put('/comments/:id/approve', adminApproveComment)
+router.put('/comments/:id/reject', adminRejectComment)
+router.delete('/comments/:id', adminDeleteComment)
 
 module.exports = router

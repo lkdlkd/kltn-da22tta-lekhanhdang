@@ -19,7 +19,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FavoriteButton } from '@/components/rooms/FavoriteButton'
-import { ReviewSection } from '@/components/rooms/ReviewSection'
+import { CommentSection } from '@/components/rooms/CommentSection'
 import { BookingDialog } from '@/components/rooms/BookingDialog'
 import { ReportButton } from '@/components/rooms/ReportButton'
 import { CompareButton } from '@/components/compare/CompareBar'
@@ -56,6 +56,7 @@ const fmtPrice = (v) =>
 const fmtAddress = (a) => {
   if (!a) return ''
   if (typeof a === 'string') return a
+  // legacy object fallback
   return a.fullAddress || [a.street, a.ward, a.district, a.city].filter(Boolean).join(', ')
 }
 
@@ -292,7 +293,25 @@ export default function RoomDetailPage() {
         </div>
       )}
 
-      {/* ── MAIN CONTENT: left col + right sticky sidebar ────────────── */}
+      {/* Video section */}
+      {(room?.videos?.length > 0) && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold flex items-center gap-1.5">
+            🎬 Video phòng trọ
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {room.videos.map((url, i) => (
+              <video
+                key={i}
+                src={url}
+                controls
+                className="w-full rounded-xl border bg-muted object-cover max-h-[260px]"
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-3">
 
         {/* ── LEFT: Info + Tabs ───────────────────────────────────────── */}
@@ -304,12 +323,6 @@ export default function RoomDetailPage() {
               <Badge variant="secondary" className="text-xs">{ROOM_TYPE_LABELS[room.roomType] || 'Phòng trọ'}</Badge>
               {distanceText && (
                 <Badge variant="outline" className="text-xs gap-1"><MapPin className="h-2.5 w-2.5" />{distanceText}</Badge>
-              )}
-              {room.averageRating > 0 && (
-                <Badge variant="outline" className="text-xs gap-1 text-amber-600 border-amber-300">
-                  <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
-                  {room.averageRating.toFixed(1)} ({room.reviewCount})
-                </Badge>
               )}
             </div>
             <h1 className="text-xl font-bold leading-snug sm:text-2xl">{room.title}</h1>
@@ -341,7 +354,7 @@ export default function RoomDetailPage() {
             <TabsList className="w-full grid grid-cols-3 h-9">
               <TabsTrigger value="info" className="text-xs gap-1"><House className="h-3 w-3" />Thông tin</TabsTrigger>
               <TabsTrigger value="map" className="text-xs gap-1"><Navigation className="h-3 w-3" />Bản đồ</TabsTrigger>
-              <TabsTrigger value="reviews" className="text-xs gap-1"><Star className="h-3 w-3" />Đánh giá</TabsTrigger>
+              <TabsTrigger value="reviews" className="text-xs gap-1"><MessageCircle className="h-3 w-3" />Bình luận</TabsTrigger>
             </TabsList>
 
             {/* Tab: Thông tin */}
@@ -385,12 +398,9 @@ export default function RoomDetailPage() {
                     <SquareArrowOutUpRight className="h-3 w-3" />Google Maps
                   </a>
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                  {room.address?.street && <><span className="text-muted-foreground">Đường:</span><span className="font-medium">{room.address.street}</span></>}
-                  {room.address?.ward && <><span className="text-muted-foreground">Phường/Xã:</span><span className="font-medium">{room.address.ward}</span></>}
-                  {room.address?.district && <><span className="text-muted-foreground">Quận/Huyện:</span><span className="font-medium">{room.address.district}</span></>}
-                  <span className="text-muted-foreground">Tỉnh:</span><span className="font-medium">{room.address?.city || 'Vĩnh Long'}</span>
-                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {fmtAddress(room.address) || 'Chưa có địa chỉ'}
+                </p>
               </div>
             </TabsContent>
 
@@ -435,21 +445,10 @@ export default function RoomDetailPage() {
               </div>
             </TabsContent>
 
-            {/* Tab: Đánh giá */}
+            {/* Tab: Bình luận */}
             <TabsContent value="reviews" className="mt-3">
               <div className="rounded-xl border bg-card p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">Đánh giá sinh viên</h2>
-                  {room.averageRating > 0 && (
-                    <span className="flex items-center gap-1 text-sm font-bold text-amber-600">
-                      <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                      {room.averageRating.toFixed(1)}
-                      <span className="text-xs font-normal text-muted-foreground">({room.reviewCount})</span>
-                    </span>
-                  )}
-                </div>
-                <Separator />
-                <ReviewSection roomId={room?._id} />
+                <CommentSection roomId={room?._id} />
               </div>
             </TabsContent>
           </Tabs>

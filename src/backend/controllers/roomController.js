@@ -13,13 +13,8 @@ const roomSchema = Joi.object({
   amenities: Joi.array().items(Joi.string().trim()).default([]),
   images: Joi.array().items(Joi.string().uri()).default([]),
   images360: Joi.array().items(Joi.string().uri()).default([]),
-  address: Joi.object({
-    street: Joi.string().trim().required(),
-    ward: Joi.string().trim().allow('').default(''),
-    district: Joi.string().trim().allow('').default(''),
-    city: Joi.string().trim().allow('').default('Vĩnh Long'),
-    fullAddress: Joi.string().trim().allow('').default(''),
-  }).required(),
+  videos: Joi.array().items(Joi.string().uri()).default([]),
+  address: Joi.string().trim().min(5).required(),
   lat: Joi.number().min(-90).max(90).required(),
   lng: Joi.number().min(-180).max(180).required(),
   isAvailable: Joi.boolean().default(true),
@@ -58,22 +53,17 @@ const parseMaybeJsonObject = (value) => {
   return null
 }
 
-const buildAddressObject = (source = {}) => {
-  const parsedAddress = parseMaybeJsonObject(source.address)
-  const address = parsedAddress || {
-    street: source.street || '',
-    ward: source.ward || '',
-    district: source.district || '',
-    city: source.city || 'Vĩnh Long',
-    fullAddress: source.fullAddress || '',
+const buildAddress = (source = {}) => {
+  // Support old object format (backward compat) or plain string
+  if (typeof source.address === 'string' && source.address.trim()) {
+    return source.address.trim()
   }
-
-  if (!address.city) address.city = 'Vĩnh Long'
-  if (!address.fullAddress) {
-    address.fullAddress = [address.street, address.ward, address.district, address.city].filter(Boolean).join(', ')
+  if (source.address && typeof source.address === 'object') {
+    // Legacy object — flatten to fullAddress or joined string
+    return source.address.fullAddress
+      || [source.address.street, source.address.ward, source.address.district, source.address.city].filter(Boolean).join(', ')
   }
-
-  return address
+  return ''
 }
 
 const normalizeRoomInput = (body = {}) => {
@@ -81,7 +71,8 @@ const normalizeRoomInput = (body = {}) => {
   normalized.amenities = parseArrayField(body.amenities)
   normalized.images = parseArrayField(body.images)
   normalized.images360 = parseArrayField(body.images360)
-  normalized.address = buildAddressObject(body)
+  normalized.videos = parseArrayField(body.videos)
+  normalized.address = buildAddress(body)
 
   if (body.price !== undefined) normalized.price = Number(body.price)
   if (body.area !== undefined) normalized.area = Number(body.area)
@@ -199,9 +190,13 @@ exports.getRooms = async (req, res) => {
       }
     }
 
-    // ── Lọc địa chỉ ───────────────────────────────────────────────────
-    if (req.query.district) query['address.district'] = req.query.district
-    if (req.query.ward) query['address.ward'] = req.query.ward
+    // ── Lọc địa chỉ (full-text qua $text ở trên) ──────────────────────────────────
+    if (req.query.district || req.query.ward) {
+      // Legacy district/ward filter: do regex on address string
+      const terms = [req.query.district, req.query.ward].filter(Boolean)
+      const re = new RegExp(terms.join('|'), 'i')
+      query.address = re
+    }
 
     // ── Lọc loại phòng ────────────────────────────────────────────────
     if (req.query.roomType) query.roomType = req.query.roomType

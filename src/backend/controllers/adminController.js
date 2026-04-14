@@ -12,7 +12,7 @@ exports.adminGetRooms = async (req, res) => {
     if (req.query.status) query.status = req.query.status
     if (req.query.search) {
       const re = new RegExp(req.query.search, 'i')
-      query.$or = [{ title: re }, { 'address.district': re }, { 'address.city': re }]
+      query.$or = [{ title: re }, { address: re }]
     }
 
     const [rooms, total] = await Promise.all([

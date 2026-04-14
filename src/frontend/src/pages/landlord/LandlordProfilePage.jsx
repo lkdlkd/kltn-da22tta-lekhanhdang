@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import {
-  MapPin, MessageCircle, Star, Home, CheckCircle2,
+  MapPin, MessageCircle, Home, CheckCircle2,
   CalendarDays, Phone, LayoutGrid, List, Building2,
   BadgeCheck, Info, Camera,
 } from 'lucide-react'
@@ -51,11 +51,6 @@ function RoomListItem({ room }) {
           </span>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span>{room.area} m²</span>
-            {room.averageRating > 0 && (
-              <span className="flex items-center gap-0.5 text-amber-500 font-medium">
-                <Star className="h-3 w-3 fill-amber-400" />{room.averageRating.toFixed(1)}
-              </span>
-            )}
           </div>
         </div>
       </div>
