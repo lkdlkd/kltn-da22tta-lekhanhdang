@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   ShieldBan, ShieldCheck, Users, RefreshCw,
@@ -15,7 +15,7 @@ import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
 const ROLE_CFG = {
-  student:  {
+  student: {
     label: 'Sinh viên',
     badgeCls: 'border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
     avatarCls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -72,14 +72,16 @@ function Pagination({ page, totalPages, total, onChange }) {
 }
 
 export default function AdminUsersPage() {
-  const [users, setUsers]             = useState([])
-  const [loading, setLoading]         = useState(true)
-  const [roleFilter, setRoleFilter]   = useState('')
-  const [banFilter, setBanFilter]     = useState('')
-  const [search, setSearch]           = useState('')
-  const [page, setPage]               = useState(1)
-  const [pagination, setPagination]   = useState({ total: 0, totalPages: 1 })
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [roleFilter, setRoleFilter] = useState('')
+  const [banFilter, setBanFilter] = useState('')
+  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 })
   const [actionLoading, setActionLoading] = useState('')
+  const searchTimeout = useRef(null)
   const LIMIT = 20
 
   const fetchUsers = useCallback(async (pg = page) => {
@@ -88,15 +90,22 @@ export default function AdminUsersPage() {
       const params = { page: pg, limit: LIMIT }
       if (roleFilter) params.role = roleFilter
       if (banFilter !== '') params.isBanned = banFilter
+      if (search) params.search = search
       const res = await adminGetUsersApi(params)
       setUsers(res.data?.data?.users || [])
       setPagination(res.data?.data?.pagination || { total: 0, totalPages: 1 })
     } catch { toast.error('Không thể tải danh sách người dùng') }
     finally { setLoading(false) }
-  }, [roleFilter, banFilter, page])
+  }, [roleFilter, banFilter, search, page])
 
-  useEffect(() => { setPage(1); fetchUsers(1) }, [roleFilter, banFilter])
+  useEffect(() => { setPage(1); fetchUsers(1) }, [roleFilter, banFilter, search])
   useEffect(() => { fetchUsers(page) }, [page])
+
+  const handleSearchChange = (v) => {
+    setSearchInput(v)
+    clearTimeout(searchTimeout.current)
+    searchTimeout.current = setTimeout(() => setSearch(v), 500)
+  }
 
   const handleBan = async (id, isBanned) => {
     setActionLoading(id)
@@ -107,14 +116,6 @@ export default function AdminUsersPage() {
     } catch { toast.error('Lỗi thực hiện thao tác') }
     finally { setActionLoading('') }
   }
-
-  const displayed = search.trim()
-    ? users.filter(u =>
-        u.name?.toLowerCase().includes(search.toLowerCase()) ||
-        u.email?.toLowerCase().includes(search.toLowerCase()) ||
-        u.phone?.includes(search)
-      )
-    : users
 
   const bannedCount = users.filter(u => u.isBanned).length
 
@@ -133,7 +134,7 @@ export default function AdminUsersPage() {
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)}
+            <Input value={searchInput} onChange={e => handleSearchChange(e.target.value)}
               placeholder="Tên, email, SĐT..."
               className="h-9 pl-8 w-48" />
           </div>
@@ -192,89 +193,89 @@ export default function AdminUsersPage() {
             <tbody className="divide-y divide-border">
               {loading
                 ? Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i}>
-                      <td className="px-5 py-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full shrink-0" /><div className="space-y-1.5"><Skeleton className="h-4 w-28" /><Skeleton className="h-3 w-20" /></div></div></td>
-                      <td className="px-5 py-3"><div className="space-y-1.5"><Skeleton className="h-3 w-40" /><Skeleton className="h-3 w-24" /></div></td>
-                      <td className="px-5 py-3"><Skeleton className="h-5 w-20 rounded-full" /></td>
-                      <td className="px-5 py-3"><Skeleton className="h-3 w-20" /></td>
-                      <td className="px-5 py-3"><Skeleton className="h-5 w-24 rounded-full" /></td>
-                      <td className="px-5 py-3 text-right"><Skeleton className="h-8 w-20 ml-auto" /></td>
-                    </tr>
-                  ))
-                : displayed.length === 0
+                  <tr key={i}>
+                    <td className="px-5 py-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full shrink-0" /><div className="space-y-1.5"><Skeleton className="h-4 w-28" /><Skeleton className="h-3 w-20" /></div></div></td>
+                    <td className="px-5 py-3"><div className="space-y-1.5"><Skeleton className="h-3 w-40" /><Skeleton className="h-3 w-24" /></div></td>
+                    <td className="px-5 py-3"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                    <td className="px-5 py-3"><Skeleton className="h-3 w-20" /></td>
+                    <td className="px-5 py-3"><Skeleton className="h-5 w-24 rounded-full" /></td>
+                    <td className="px-5 py-3 text-right"><Skeleton className="h-8 w-20 ml-auto" /></td>
+                  </tr>
+                ))
+                : users.length === 0
                   ? (
                     <tr><td colSpan={6} className="py-16 text-center text-muted-foreground">
                       <Users className="h-8 w-8 mx-auto mb-2 opacity-20" />
                       <p className="text-sm">Không có người dùng nào</p>
                     </td></tr>
                   )
-                  : displayed.map(user => {
-                      const rc = ROLE_CFG[user.role] || ROLE_CFG.student
-                      return (
-                        <tr key={user._id} className={cn('hover:bg-muted/20 transition-colors', user.isBanned && 'opacity-55')}>
-                          {/* User */}
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold overflow-hidden border', rc.avatarCls)}>
-                                {user.avatar
-                                  ? <img src={user.avatar} alt="" className="h-full w-full object-cover" />
-                                  : (user.name || '?')[0].toUpperCase()}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium leading-snug break-words">{user.name}</p>
-                                {user.isBanned && (
-                                  <Badge variant="outline" className="mt-0.5 h-4 px-1.5 text-[10px] border-red-200 bg-red-50 text-red-600">
-                                    Đã khoá
-                                  </Badge>
-                                )}
-                              </div>
+                  : users.map(user => {
+                    const rc = ROLE_CFG[user.role] || ROLE_CFG.student
+                    return (
+                      <tr key={user._id} className={cn('hover:bg-muted/20 transition-colors', user.isBanned && 'opacity-55')}>
+                        {/* User */}
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold overflow-hidden border', rc.avatarCls)}>
+                              {user.avatar
+                                ? <img src={user.avatar} alt="" className="h-full w-full object-cover" />
+                                : (user.name || '?')[0].toUpperCase()}
                             </div>
-                          </td>
-                          {/* Contact */}
-                          <td className="px-5 py-3 text-xs text-muted-foreground space-y-0.5">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium leading-snug break-words">{user.name}</p>
+                              {user.isBanned && (
+                                <Badge variant="outline" className="mt-0.5 h-4 px-1.5 text-[10px] border-red-200 bg-red-50 text-red-600">
+                                  Đã khoá
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        {/* Contact */}
+                        <td className="px-5 py-3 text-xs text-muted-foreground space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="break-all">{user.email}</span>
+                          </div>
+                          {user.phone && (
                             <div className="flex items-center gap-1.5">
-                              <Mail className="h-3 w-3 shrink-0" />
-                              <span className="break-all">{user.email}</span>
+                              <Phone className="h-3 w-3 shrink-0" />{user.phone}
                             </div>
-                            {user.phone && (
-                              <div className="flex items-center gap-1.5">
-                                <Phone className="h-3 w-3 shrink-0" />{user.phone}
-                              </div>
-                            )}
-                          </td>
-                          {/* Role */}
-                          <td className="px-5 py-3">
-                            <Badge variant="outline" className={rc.badgeCls}>{rc.label}</Badge>
-                          </td>
-                          {/* Join */}
-                          <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                            {dayjs(user.createdAt).format('DD/MM/YYYY')}
-                          </td>
-                          {/* Verified */}
-                          <td className="px-5 py-3">
-                            {user.isEmailVerified
-                              ? <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] h-5">✓ Đã xác minh</Badge>
-                              : <span className="text-xs text-muted-foreground">Chưa xác minh</span>}
-                          </td>
-                          {/* Action */}
-                          <td className="px-5 py-3 text-right">
-                            {user.role !== 'admin' && (
-                              <Button
-                                variant={user.isBanned ? 'outline' : 'ghost'}
-                                size="sm"
-                                className={cn('h-8 gap-1.5 text-xs', !user.isBanned && 'text-red-500 hover:bg-red-50 hover:text-red-600')}
-                                disabled={actionLoading === user._id}
-                                onClick={() => handleBan(user._id, user.isBanned)}
-                              >
-                                {user.isBanned
-                                  ? <><ShieldCheck className="h-3.5 w-3.5" />Mở khoá</>
-                                  : <><ShieldBan className="h-3.5 w-3.5" />Khoá</>}
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
+                          )}
+                        </td>
+                        {/* Role */}
+                        <td className="px-5 py-3">
+                          <Badge variant="outline" className={rc.badgeCls}>{rc.label}</Badge>
+                        </td>
+                        {/* Join */}
+                        <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                          {dayjs(user.createdAt).format('DD/MM/YYYY')}
+                        </td>
+                        {/* Verified */}
+                        <td className="px-5 py-3">
+                          {user.isEmailVerified
+                            ? <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] h-5">✓ Đã xác minh</Badge>
+                            : <span className="text-xs text-muted-foreground">Chưa xác minh</span>}
+                        </td>
+                        {/* Action */}
+                        <td className="px-5 py-3 text-right">
+                          {user.role !== 'admin' && (
+                            <Button
+                              variant={user.isBanned ? 'outline' : 'ghost'}
+                              size="sm"
+                              className={cn('h-8 gap-1.5 text-xs', !user.isBanned && 'text-red-500 hover:bg-red-50 hover:text-red-600')}
+                              disabled={actionLoading === user._id}
+                              onClick={() => handleBan(user._id, user.isBanned)}
+                            >
+                              {user.isBanned
+                                ? <><ShieldCheck className="h-3.5 w-3.5" />Mở khoá</>
+                                : <><ShieldBan className="h-3.5 w-3.5" />Khoá</>}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
             </tbody>
           </table>
         </div>

@@ -2,17 +2,24 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
-  CheckCircle, XCircle, Star, RefreshCw,
-  MessageSquare, ChevronLeft, ChevronRight, ExternalLink,
+  CheckCircle, XCircle, RefreshCw,
+  MessageSquare, ChevronLeft, ChevronRight, ExternalLink, Trash2,
 } from 'lucide-react'
 import dayjs from 'dayjs'
-import { adminGetReviewsApi, adminApproveReviewApi, adminRejectReviewApi } from '@/services/reviewService'
+import {
+  adminGetReviewsApi, adminApproveReviewApi,
+  adminRejectReviewApi, adminDeleteReviewApi,
+} from '@/services/reviewService'
 import { StarRating } from '@/components/rooms/StarRating'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogDescription, DialogFooter,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 const STATUS_CFG = {
@@ -66,6 +73,7 @@ export default function AdminReviewsPage() {
   const [page, setPage]                 = useState(1)
   const [pagination, setPagination]     = useState({ total: 0, totalPages: 1 })
   const [actionLoading, setActionLoading] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const LIMIT = 10
 
   const fetchReviews = useCallback(async (pg = page) => {
@@ -103,6 +111,17 @@ export default function AdminReviewsPage() {
     finally { setActionLoading('') }
   }
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setActionLoading(deleteTarget._id)
+    try {
+      await adminDeleteReviewApi(deleteTarget._id)
+      setReviews(prev => prev.filter(r => r._id !== deleteTarget._id))
+      toast.success('Đã xoá đánh giá')
+    } catch { toast.error('Lỗi khi xoá') }
+    finally { setActionLoading(''); setDeleteTarget(null) }
+  }
+
   // client-side star filter
   const displayed = starFilter
     ? reviews.filter(r => {
@@ -132,15 +151,12 @@ export default function AdminReviewsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Status tabs */}
         <div className="flex gap-0 border-b">
           {STATUS_TABS.map(tab => (
             <button key={tab.value} onClick={() => setStatusFilter(tab.value)}
               className={cn(
                 'flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
-                statusFilter === tab.value
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                statusFilter === tab.value ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
               )}>
               {tab.label}
               {tab.value === 'pending' && pendingCount > 0 && (
@@ -152,7 +168,6 @@ export default function AdminReviewsPage() {
 
         <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
-        {/* Star pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {STAR_FILTERS.map(f => (
             <button key={f.value} onClick={() => setStarFilter(f.value)}
@@ -203,7 +218,6 @@ export default function AdminReviewsPage() {
                     <CardContent className="p-4 space-y-3">
                       {/* Header row */}
                       <div className="flex items-start gap-3">
-                        {/* Avatar */}
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted border text-sm font-bold">
                           {(review.user?.name || '?')[0].toUpperCase()}
                         </div>
@@ -236,21 +250,39 @@ export default function AdminReviewsPage() {
                       </p>
 
                       {/* Actions */}
-                      {review.status === 'pending' && (
-                        <>
-                          <Separator />
-                          <div className="flex items-center gap-2">
-                            <Button size="sm" className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-                              disabled={actionLoading === review._id} onClick={() => handleApprove(review._id)}>
-                              <CheckCircle className="h-3.5 w-3.5" />Duyệt
-                            </Button>
-                            <Button size="sm" variant="destructive" className="h-8 gap-1.5"
-                              disabled={actionLoading === review._id} onClick={() => handleReject(review._id)}>
-                              <XCircle className="h-3.5 w-3.5" />Từ chối
+                      <div className="space-y-2">
+                        {review.status === 'pending' && (
+                          <>
+                            <Separator />
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                                disabled={actionLoading === review._id} onClick={() => handleApprove(review._id)}>
+                                <CheckCircle className="h-3.5 w-3.5" />Duyệt
+                              </Button>
+                              <Button size="sm" variant="destructive" className="h-8 gap-1.5"
+                                disabled={actionLoading === review._id} onClick={() => handleReject(review._id)}>
+                                <XCircle className="h-3.5 w-3.5" />Từ chối
+                              </Button>
+                              <Button size="sm" variant="ghost"
+                                className="h-8 gap-1.5 text-xs text-red-500 hover:bg-red-50 hover:text-red-600 ml-auto"
+                                disabled={actionLoading === review._id}
+                                onClick={() => setDeleteTarget(review)}>
+                                <Trash2 className="h-3.5 w-3.5" />Xoá
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                        {review.status !== 'pending' && (
+                          <div className="flex justify-end">
+                            <Button size="sm" variant="ghost"
+                              className="h-7 gap-1.5 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
+                              disabled={actionLoading === review._id}
+                              onClick={() => setDeleteTarget(review)}>
+                              <Trash2 className="h-3 w-3" />Xoá vĩnh viễn
                             </Button>
                           </div>
-                        </>
-                      )}
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 )
@@ -258,6 +290,27 @@ export default function AdminReviewsPage() {
       </div>
 
       <Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} />
+
+      {/* Delete confirm */}
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />Xoá đánh giá
+            </DialogTitle>
+            <DialogDescription>
+              Đánh giá của <strong>{deleteTarget?.user?.name}</strong> về phòng{' '}
+              <strong>"{deleteTarget?.room?.title}"</strong> sẽ bị xoá vĩnh viễn và không thể khôi phục.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Huỷ</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={Boolean(actionLoading)}>
+              <Trash2 className="h-4 w-4 mr-1.5" />Xác nhận xoá
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -126,3 +126,14 @@ exports.adminRejectReview = async (req, res) => {
     return sendResponse(res, 500, false, error.message)
   }
 }
+
+// DELETE /api/admin/reviews/:id
+exports.adminDeleteReview = async (req, res) => {
+  try {
+    const review = await Review.findByIdAndDelete(req.params.id)
+    if (!review) return sendResponse(res, 404, false, 'Không tìm thấy đánh giá')
+    return sendResponse(res, 200, true, 'Đã xoá đánh giá', {})
+  } catch (error) {
+    return sendResponse(res, 500, false, error.message)
+  }
+}

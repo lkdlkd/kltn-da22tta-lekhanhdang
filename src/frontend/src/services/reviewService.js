@@ -6,6 +6,7 @@ export const updateReviewApi = (reviewId, data) => axiosInstance.put(`/api/revie
 export const deleteReviewApi = (reviewId) => axiosInstance.delete(`/api/reviews/${reviewId}`)
 
 // Admin
-export const adminGetReviewsApi = (params) => axiosInstance.get('/api/admin/reviews', { params })
+export const adminGetReviewsApi    = (params) => axiosInstance.get('/api/admin/reviews', { params })
 export const adminApproveReviewApi = (id) => axiosInstance.put(`/api/admin/reviews/${id}/approve`)
-export const adminRejectReviewApi = (id) => axiosInstance.put(`/api/admin/reviews/${id}/reject`)
+export const adminRejectReviewApi  = (id) => axiosInstance.put(`/api/admin/reviews/${id}/reject`)
+export const adminDeleteReviewApi  = (id) => axiosInstance.delete(`/api/admin/reviews/${id}`)

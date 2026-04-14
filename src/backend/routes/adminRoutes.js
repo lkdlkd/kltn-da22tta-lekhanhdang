@@ -6,7 +6,7 @@ const {
   adminGetUsers, adminBanUser, adminUnbanUser,
   adminGetStats,
 } = require('../controllers/adminController')
-const { adminGetReviews, adminApproveReview, adminRejectReview } = require('../controllers/reviewController')
+const { adminGetReviews, adminApproveReview, adminRejectReview, adminDeleteReview } = require('../controllers/reviewController')
 
 const router = express.Router()
 router.use(authenticate, authorize('admin'))
@@ -27,5 +27,6 @@ router.put('/users/:id/unban', adminUnbanUser)
 router.get('/reviews', adminGetReviews)
 router.put('/reviews/:id/approve', adminApproveReview)
 router.put('/reviews/:id/reject', adminRejectReview)
+router.delete('/reviews/:id', adminDeleteReview)
 
 module.exports = router

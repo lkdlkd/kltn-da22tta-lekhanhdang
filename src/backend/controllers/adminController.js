@@ -152,7 +152,11 @@ exports.adminGetUsers = async (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 20, 50)
     const query = {}
     if (req.query.role) query.role = req.query.role
-    if (req.query.isBanned !== undefined) query.isBanned = req.query.isBanned === 'true'
+    if (req.query.isBanned !== undefined && req.query.isBanned !== '') query.isBanned = req.query.isBanned === 'true'
+    if (req.query.search) {
+      const re = new RegExp(req.query.search, 'i')
+      query.$or = [{ name: re }, { email: re }, { phone: re }]
+    }
 
     const [users, total] = await Promise.all([
       User.find(query)
