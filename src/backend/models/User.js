@@ -28,7 +28,6 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Mật khẩu là bắt buộc'],
       minlength: [6, 'Mật khẩu tối thiểu 6 ký tự'],
       select: false,
     },
@@ -57,11 +56,24 @@ const userSchema = new mongoose.Schema(
     emailVerifyTokenExpires: Date,
     passwordResetToken: String,
     passwordResetTokenExpires: Date,
+    googleId: {
+      type: String,
+      default: null,
+      sparse: true,
+    },
     // Preferences cho recommendation
     preferences: {
       maxPrice: { type: Number, default: null },
       minArea: { type: Number, default: null },
       district: { type: String, default: null },
+    },
+    // ── Thống kê phản hồi tin nhắn (dành cho landlord) ──────────────────
+    responseRate: { type: Number, default: null, min: 0, max: 100 }, // %
+    avgResponseTime: { type: Number, default: null },                 // phút
+    _respTracking: {
+      totalConvReceived: { type: Number, default: 0 }, // số conv sinh viên nhắn
+      totalConvReplied:  { type: Number, default: 0 }, // số conv đã trả lời
+      sumResponseMins:   { type: Number, default: 0 }, // tổng thời gian reply (phút)
     },
   },
   {

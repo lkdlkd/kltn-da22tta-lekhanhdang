@@ -56,14 +56,33 @@ const removeUserSocket = (uid, sid) => {
   s.delete(sid); if (s.size === 0) onlineUsers.delete(uid)
 }
 
+// ── Unread count helper ─────────────────────────────────────────────────────────
+async function emitUnreadCount(userId) {
+  try {
+    const Message = require('./models/Message')
+    const Conversation = require('./models/Conversation')
+    const convIds = (await Conversation.find({ participants: userId }).select('_id')).map((c) => c._id)
+    const count = await Message.countDocuments({
+      conversation: { $in: convIds },
+      sender: { $ne: userId },
+      isRead: false,
+    })
+    io.to(`user:${String(userId)}`).emit('unread_count', { count })
+  } catch {}
+}
+
+app.set('emitUnreadCount', emitUnreadCount)
+
 io.on('connection', (socket) => {
   // User join personal room + track online
-  socket.on('join_user', (userId) => {
+  socket.on('join_user', async (userId) => {
     const uid = String(userId)
     socket.join(`user:${uid}`)
     socket.data.userId = uid
     addUserSocket(uid, socket.id)
     socket.broadcast.emit('user_online', { userId: uid })
+    // Emit unread count ngay khi user connect
+    await emitUnreadCount(uid)
   })
 
   // Chat: join conversation room
@@ -71,18 +90,34 @@ io.on('connection', (socket) => {
     socket.join(`conv:${conversationId}`)
   })
 
-  // Chat: send message
+  // Chat: send message (text + optional attachments)
   socket.on('send_message', async (data) => {
     try {
-      const Message = require('./models/Message')
+      const Message      = require('./models/Message')
       const Conversation = require('./models/Conversation')
-      const { conversationId, senderId, content } = data
-      if (!conversationId || !senderId || !content?.trim()) return
+      const User         = require('./models/User')
+      const { conversationId, senderId, content, attachments } = data
+      const hasContent     = content?.trim()
+      const hasAttachments = Array.isArray(attachments) && attachments.length > 0
+      if (!conversationId || !senderId || (!hasContent && !hasAttachments)) return
 
+      // ── Lấy conversation + sender info trước khi tạo message ──────────
+      const [conv, sender] = await Promise.all([
+        Conversation.findById(conversationId).select('participants'),
+        User.findById(senderId).select('role'),
+      ])
+      if (!conv) return
+
+      // ── Kiểm tra đây có phải lần đầu sender nhắn trong conv không ─────
+      const senderPriorCount = await Message.countDocuments({ conversation: conversationId, sender: senderId })
+      const isFirstMsg = senderPriorCount === 0
+
+      // ── Tạo message ────────────────────────────────────────────────────
       const message = await Message.create({
         conversation: conversationId,
         sender: senderId,
-        content: content.trim(),
+        content: hasContent ? content.trim() : '',
+        attachments: hasAttachments ? attachments : [],
       })
       await Conversation.findByIdAndUpdate(conversationId, {
         lastMessage: message._id,
@@ -90,8 +125,52 @@ io.on('connection', (socket) => {
       })
       const populated = await Message.findById(message._id).populate('sender', 'name avatar')
       io.to(`conv:${conversationId}`).emit('receive_message', populated)
-      // Auto-stop typing khi gửi tin
       socket.to(`conv:${conversationId}`).emit('typing_stop', { conversationId, userId: senderId })
+
+      // ── Tracking tỷ lệ phản hồi ───────────────────────────────────────
+      if (isFirstMsg) {
+        const others = conv.participants.map(String).filter((p) => p !== String(senderId))
+
+        if (sender?.role === 'student') {
+          // Sinh viên nhắn lần đầu → tăng totalConvReceived của landlord
+          for (const landlordId of others) {
+            const landlord = await User.findById(landlordId).select('role')
+            if (landlord?.role === 'landlord') {
+              await User.findByIdAndUpdate(landlordId, { $inc: { '_respTracking.totalConvReceived': 1 } })
+            }
+          }
+        } else if (sender?.role === 'landlord') {
+          // Landlord reply lần đầu → tính responseTime + cập nhật stats
+          const firstStudentMsg = await Message.findOne({
+            conversation: conversationId,
+            sender: { $nin: [senderId] },
+          }).sort({ createdAt: 1 })
+
+          if (firstStudentMsg) {
+            const respMins = Math.round((Date.now() - new Date(firstStudentMsg.createdAt).getTime()) / 60000)
+            const landlordDoc = await User.findById(senderId).select('_respTracking')
+            if (landlordDoc) {
+              const t = landlordDoc._respTracking || {}
+              const newReplied  = (t.totalConvReplied  || 0) + 1
+              const newReceived = Math.max(t.totalConvReceived || 0, newReplied)
+              const newSum      = (t.sumResponseMins || 0) + respMins
+              const newRate     = Math.round((newReplied / newReceived) * 100)
+              const newAvg      = Math.round(newSum / newReplied)
+              await User.findByIdAndUpdate(senderId, {
+                responseRate: newRate,
+                avgResponseTime: newAvg,
+                '_respTracking.totalConvReplied':  newReplied,
+                '_respTracking.totalConvReceived': newReceived,
+                '_respTracking.sumResponseMins':   newSum,
+              })
+            }
+          }
+        }
+      }
+
+      // ── Emit unread_count cho recipients ──────────────────────────────
+      const recipients = conv.participants.map(String).filter((p) => p !== String(senderId))
+      await Promise.all(recipients.map((uid) => emitUnreadCount(uid)))
     } catch (err) {
       console.error('Socket send_message error:', err.message)
     }

@@ -210,3 +210,84 @@ exports.resetPassword = async (req, res) => {
     sendResponse(res, 500, false, error.message)
   }
 }
+
+// ── Google OAuth2 - Backend Redirect Flow ─────────────────────────────────
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
+const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback'
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
+
+// GET /api/auth/google — redirect user to Google consent screen
+exports.googleRedirect = (req, res) => {
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_CALLBACK_URL,
+    response_type: 'code',
+    scope: 'openid email profile',
+    access_type: 'offline',
+    prompt: 'select_account',
+  })
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)
+}
+
+// GET /api/auth/google/callback — exchange code for tokens, upsert user, redirect FE
+exports.googleCallback = async (req, res) => {
+  try {
+    const { code } = req.query
+    if (!code) return res.redirect(`${FRONTEND_URL}/login?error=google_failed`)
+
+    // Exchange code for tokens
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: GOOGLE_CALLBACK_URL,
+        grant_type: 'authorization_code',
+      }),
+    })
+    const tokenData = await tokenRes.json()
+    if (!tokenData.id_token) return res.redirect(`${FRONTEND_URL}/login?error=google_failed`)
+
+    // Verify id_token and extract user info
+    const { OAuth2Client } = require('google-auth-library')
+    const client = new OAuth2Client(GOOGLE_CLIENT_ID)
+    const ticket = await client.verifyIdToken({
+      idToken: tokenData.id_token,
+      audience: GOOGLE_CLIENT_ID,
+    })
+    const { email, name, picture, sub: googleId } = ticket.getPayload()
+
+    // Upsert user
+    let user = await User.findOne({ email })
+    if (!user) {
+      const username = await generateUsername(email)
+      user = await User.create({
+        name: name || email.split('@')[0],
+        email,
+        username,
+        avatar: picture || '',
+        role: 'student',
+        isEmailVerified: true,
+        googleId,
+        // No password — Google users won't login with password
+        password: crypto.randomBytes(20).toString('hex'),
+      })
+    } else if (!user.googleId) {
+      // Link existing account with Google
+      user.googleId = googleId
+      if (!user.avatar && picture) user.avatar = picture
+      user.isEmailVerified = true
+      await user.save()
+    }
+
+    const token = signToken(user._id)
+    res.redirect(`${FRONTEND_URL}/login?token=${token}`)
+  } catch (error) {
+    console.error('Google callback error:', error)
+    res.redirect(`${FRONTEND_URL}/login?error=google_failed`)
+  }
+}

@@ -1,5 +1,6 @@
 const Comment = require('../models/Comment')
 const sendResponse = require('../utils/apiResponse')
+const { createNotification } = require('./notificationController')
 
 // POST /api/comments/room/:id
 exports.createComment = async (req, res) => {
@@ -49,6 +50,46 @@ exports.deleteComment = async (req, res) => {
   }
 }
 
+// POST /api/comments/:id/reply — chủ trọ phản hồi bình luận
+exports.replyComment = async (req, res) => {
+  try {
+    const { content } = req.body
+    if (!content?.trim()) return sendResponse(res, 400, false, 'Nội dung phản hồi không được rỗng')
+
+    const comment = await Comment.findById(req.params.id).populate('room', 'landlord title slug')
+    if (!comment) return sendResponse(res, 404, false, 'Không tìm thấy bình luận')
+
+    // Chỉ chủ trọ sở hữu phòng mới được reply
+    const isLandlord = String(comment.room.landlord) === String(req.user._id)
+    const isAdmin = req.user.role === 'admin'
+    if (!isLandlord && !isAdmin) {
+      return sendResponse(res, 403, false, 'Chỉ chủ trọ mới có thể phản hồi bình luận này')
+    }
+
+    comment.landlordReply = {
+      content: content.trim(),
+      repliedAt: new Date(),
+    }
+    await comment.save()
+
+    // Gửi thông báo cho người bình luận
+    const io = req.app.get('io')
+    createNotification({
+      userId: comment.user,
+      type: 'comment_replied',
+      title: 'Chủ trọ đã phản hồi bình luận của bạn 💬',
+      body: `Chủ trọ đã trả lời bình luận của bạn về phòng "${comment.room?.title || 'Phòng trọ'}".`,
+      link: comment.room?.slug ? `/rooms/${comment.room.slug}` : null,
+      io,
+    }).catch(() => {})
+
+    const populated = await comment.populate('user', 'name avatar')
+    return sendResponse(res, 200, true, 'Đã phản hồi bình luận', { comment: populated })
+  } catch (error) {
+    return sendResponse(res, 500, false, error.message)
+  }
+}
+
 // ── Admin ────────────────────────────────────────────────────────────────
 
 // GET /api/admin/comments
@@ -80,8 +121,22 @@ exports.adminGetComments = async (req, res) => {
 // PUT /api/admin/comments/:id/approve
 exports.adminApproveComment = async (req, res) => {
   try {
-    const comment = await Comment.findByIdAndUpdate(req.params.id, { status: 'approved' }, { new: true })
+    const comment = await Comment.findByIdAndUpdate(
+      req.params.id, { status: 'approved' }, { new: true }
+    ).populate('room', 'title slug')
     if (!comment) return sendResponse(res, 404, false, 'Không tìm thấy bình luận')
+
+    // Gửi thông báo cho người bình luận
+    const io = req.app.get('io')
+    createNotification({
+      userId: comment.user,
+      type: 'comment_approved',
+      title: 'Bình luận được duyệt ✅',
+      body: `Bình luận của bạn về phòng “${comment.room?.title || 'Phòng trọ'}” đã được duyệt và hiển thị công khai.`,
+      link: comment.room?.slug ? `/rooms/${comment.room.slug}` : null,
+      io,
+    }).catch(() => {})
+
     return sendResponse(res, 200, true, 'Đã duyệt bình luận', { comment })
   } catch (error) {
     return sendResponse(res, 500, false, error.message)

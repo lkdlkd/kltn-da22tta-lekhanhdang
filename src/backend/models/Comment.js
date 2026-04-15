@@ -10,6 +10,11 @@ const commentSchema = new mongoose.Schema(
       enum: ['pending', 'approved', 'rejected'],
       default: 'pending',
     },
+    // Phản hồi của chủ trọ
+    landlordReply: {
+      content:   { type: String, trim: true, maxlength: 1000, default: null },
+      repliedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 )

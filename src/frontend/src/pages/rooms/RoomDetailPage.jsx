@@ -8,11 +8,13 @@ import {
   MapPin, Wifi, Wind, Flame, Star, Package, WashingMachine,
   ChefHat, Car, ShieldCheck, Camera, Trees, Sofa, Bath, Zap,
   ArrowUp, MessageCircle, Calendar, Eye, Clock,
-  CheckCircle2, XCircle, SquareArrowOutUpRight, ChevronLeft, ChevronRight,
+  CheckCircle2, XCircle, SquareArrowOutUpRight, ChevronLeft, ChevronRight, TrendingUp,
 } from 'lucide-react'
 import { getRoomBySlugApi, getRoomDistanceApi } from '@/services/roomService'
 import { createInteractionApi } from '@/services/interactionService'
 import { getFavoriteIdsApi } from '@/services/favoriteService'
+import { createConversationApi } from '@/services/chatService'
+import { getSocket } from '@/hooks/useSocket'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -101,7 +103,10 @@ export default function RoomDetailPage() {
   const [routePositions, setRoutePositions] = useState([])
   const [routeSummary, setRouteSummary] = useState('')
   const [routing, setRouting] = useState(false)
+  const [inquiryText, setInquiryText] = useState('')
+  const [inquirySending, setInquirySending] = useState(false)
   const mapRef = useRef(null)
+  const socket = getSocket()
 
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -448,7 +453,7 @@ export default function RoomDetailPage() {
             {/* Tab: Bình luận */}
             <TabsContent value="reviews" className="mt-3">
               <div className="rounded-xl border bg-card p-4 space-y-3">
-                <CommentSection roomId={room?._id} />
+                <CommentSection roomId={room?._id} landlordId={room?.landlord?._id} />
               </div>
             </TabsContent>
           </Tabs>
@@ -472,6 +477,118 @@ export default function RoomDetailPage() {
               <Button variant="outline" className="w-full gap-2" onClick={goMsg}>
                 <MessageCircle className="h-4 w-4" />Nhắn tin chủ trọ
               </Button>
+            </div>
+
+            {/* ── Landlord response stats ── */}
+            {room.landlord && (room.landlord.responseRate != null || room.landlord.avgResponseTime != null) && (
+              <div className="rounded-xl border bg-card p-3 space-y-2">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Chủ trọ phản hồi</p>
+                {room.landlord.responseRate != null && (
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] text-muted-foreground">Tỷ lệ trả lời</span>
+                        <span className="text-sm font-bold text-emerald-600">{room.landlord.responseRate}%</span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${room.landlord.responseRate}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {room.landlord.avgResponseTime != null && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Clock className="h-3 w-3 shrink-0" />
+                    <span>Thời gian TB: <strong className="text-foreground">
+                      {room.landlord.avgResponseTime < 60
+                        ? `${room.landlord.avgResponseTime} phút`
+                        : room.landlord.avgResponseTime < 1440
+                        ? `${Math.round(room.landlord.avgResponseTime / 60)} giờ`
+                        : `${Math.round(room.landlord.avgResponseTime / 1440)} ngày`}
+                    </strong></span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Quick Inquiry inline panel ── */}
+            <div className="rounded-xl border bg-muted/30 p-3 space-y-2.5">
+              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                ⚡ Nhắn nhanh chủ trọ
+              </p>
+
+              {/* Quick chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  'Phòng còn trống không ạ?',
+                  'Có video không ạ?',
+                  'Giờ giấc tự do dùng không?',
+                  'Cho hỏi giá có bao gồm điện nước?',
+                ].map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => {
+                      if (!user) { navigate('/login'); return }
+                      setInquiryText(chip)
+                    }}
+                    className="rounded-full border bg-background px-2.5 py-1 text-[11px] text-foreground hover:border-primary hover:text-primary transition-colors"
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input row */}
+              <form
+                className="flex gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  if (!user) { navigate('/login'); return }
+                  if (!inquiryText.trim() || !room?.landlord?._id) return
+                  try {
+                    setInquirySending(true)
+                    const res = await createConversationApi(room.landlord._id, room._id)
+                    const conv = res.data?.data?.conversation
+                    if (!conv) throw new Error()
+                    if (!socket.connected) socket.connect()
+                    socket.emit('join_conversation', conv._id)
+                    socket.emit('send_message', {
+                      conversationId: conv._id,
+                      senderId: user._id,
+                      content: inquiryText.trim(),
+                      attachments: [],
+                    })
+                    toast.success('Tin nhắn đã được gửi!')
+                    setInquiryText('')
+                    navigate('/messages')
+                  } catch {
+                    toast.error('Gửi tin thất bại')
+                  } finally {
+                    setInquirySending(false)
+                  }
+                }}
+              >
+                <input
+                  value={inquiryText}
+                  onChange={(e) => {
+                    if (!user) { navigate('/login'); return }
+                    setInquiryText(e.target.value)
+                  }}
+                  onFocus={() => { if (!user) navigate('/login') }}
+                  placeholder={user ? 'Nhập tin nhắn...' : 'Đăng nhập để gửi tin nhắn'}
+                  className="flex-1 rounded-full border bg-background px-3.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40 transition"
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="rounded-full px-4 shrink-0"
+                  disabled={!inquiryText.trim() || inquirySending}
+                >
+                  {inquirySending ? '...' : 'Gửi'}
+                </Button>
+              </form>
             </div>
 
             <Separator />

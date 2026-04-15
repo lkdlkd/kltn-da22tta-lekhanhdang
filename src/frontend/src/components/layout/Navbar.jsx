@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { logout, selectCurrentUser, selectIsAuthenticated } from '@/features/auth/authSlice'
 import { logoutApi } from '@/services/authService'
+import { getSocket } from '@/hooks/useSocket'
 import { Button } from '@/components/ui/button'
 import {
   Home, MessageCircle, User, LogOut, Shield, Building2,
@@ -28,10 +29,20 @@ export function Navbar() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [open, setOpen] = useState(false)
+  const [unreadMsgs, setUnreadMsgs] = useState(0)
   const menuRef = useRef(null)
 
   useEffect(() => setMounted(true), [])
   useEffect(() => setOpen(false), [location.pathname])
+
+  // Lắng nghe unread_count qua WebSocket — không cần polling
+  useEffect(() => {
+    if (!isAuth) return
+    const socket = getSocket()
+    const onUnread = ({ count }) => setUnreadMsgs(count)
+    socket.on('unread_count', onUnread)
+    return () => socket.off('unread_count', onUnread)
+  }, [isAuth])
 
   // close menu on outside click
   useEffect(() => {
@@ -102,8 +113,15 @@ export function Navbar() {
               </Button>
 
               {/* Messages */}
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild title="Tin nhắn">
-                <Link to="/messages"><MessageCircle className="h-4 w-4" /></Link>
+              <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full" asChild title="Tin nhắn">
+                <Link to="/messages">
+                  <MessageCircle className="h-4 w-4" />
+                  {unreadMsgs > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white">
+                      {unreadMsgs > 9 ? '9+' : unreadMsgs}
+                    </span>
+                  )}
+                </Link>
               </Button>
 
               {/* Notifications */}

@@ -64,6 +64,10 @@ exports.getMessages = async (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 30, 100)
     const messages = await Message.find({ conversation: req.params.id })
       .populate('sender', 'name avatar')
+      .populate({
+        path: 'appointmentRef',
+        populate: { path: 'room', select: 'title slug images' },
+      })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -73,6 +77,10 @@ exports.getMessages = async (req, res) => {
       { conversation: req.params.id, sender: { $ne: req.user._id }, isRead: false },
       { isRead: true }
     )
+
+    // Cập nhật unread_count qua socket
+    const emitUnreadCount = req.app.get('emitUnreadCount')
+    if (emitUnreadCount) emitUnreadCount(String(req.user._id)).catch(() => {})
 
     return sendResponse(res, 200, true, 'Lịch sử tin nhắn', {
       messages: messages.reverse(), // trả về theo thứ tự thời gian
@@ -93,6 +101,30 @@ exports.getUnreadCount = async (req, res) => {
       isRead: false,
     })
     return sendResponse(res, 200, true, 'OK', { count })
+  } catch (error) {
+    return sendResponse(res, 500, false, error.message)
+  }
+}
+
+// POST /api/conversations/upload-media — upload ảnh/video cho chat
+exports.uploadChatMedia = async (req, res) => {
+  try {
+    const { uploadBufferToCloudinary } = require('../services/cloudinaryService')
+    const files = req.files || []
+    if (!files.length) return sendResponse(res, 400, false, 'Không có file nào được gửi lên')
+
+    const imageMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/gif']
+
+    const results = await Promise.all(
+      files.map(async (file) => {
+        const isImage = imageMimes.includes(file.mimetype)
+        const resourceType = isImage ? 'image' : 'video'
+        const result = await uploadBufferToCloudinary(file.buffer, 'chat/media', resourceType)
+        return { url: result.secure_url, type: resourceType }
+      })
+    )
+
+    return sendResponse(res, 200, true, 'Upload thành công', { attachments: results })
   } catch (error) {
     return sendResponse(res, 500, false, error.message)
   }

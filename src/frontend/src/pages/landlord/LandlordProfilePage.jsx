@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux'
 import {
   MapPin, MessageCircle, Home, CheckCircle2,
   CalendarDays, Phone, LayoutGrid, List, Building2,
-  BadgeCheck, Info, Camera,
+  BadgeCheck, Info, Camera, TrendingUp, Clock,
 } from 'lucide-react'
 import { getLandlordPublicProfileApi } from '@/services/userService'
 import { Button } from '@/components/ui/button'
@@ -258,6 +258,45 @@ export default function LandlordProfilePage() {
                   </div>
                 ))}
               </div>
+
+              {/* Response rate */}
+              {(landlord.responseRate != null || landlord.avgResponseTime != null) && (
+                <>
+                  <div className="h-px bg-border" />
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tỷ lệ phản hồi</p>
+                    {landlord.responseRate != null && (
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-muted-foreground">Tỷ lệ rep tin nhắn</span>
+                            <span className="text-sm font-bold text-emerald-600">{landlord.responseRate}%</span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-emerald-500 transition-all"
+                              style={{ width: `${landlord.responseRate}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {landlord.avgResponseTime != null && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                        <span>Thời gian TB: <strong className="text-foreground">
+                          {landlord.avgResponseTime < 60
+                            ? `${landlord.avgResponseTime} phút`
+                            : landlord.avgResponseTime < 1440
+                            ? `${Math.round(landlord.avgResponseTime / 60)} giờ`
+                            : `${Math.round(landlord.avgResponseTime / 1440)} ngày`}
+                        </strong></span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Quick links */}
