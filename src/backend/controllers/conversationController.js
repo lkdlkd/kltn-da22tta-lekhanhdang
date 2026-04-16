@@ -8,10 +8,30 @@ exports.getConversations = async (req, res) => {
   try {
     const conversations = await Conversation.find({ participants: req.user._id })
       .populate('participants', 'name avatar role')
-      .populate({ path: 'lastMessage', select: 'content createdAt isRead sender' })
+      .populate({ path: 'lastMessage', select: 'content createdAt isRead sender attachments messageType' })
       .populate('room', 'title slug images')
       .sort({ lastMessageAt: -1 })
-    return sendResponse(res, 200, true, 'Danh sách cuộc hội thoại', { conversations })
+
+    // Attach unread count per conversation
+    const convIds = conversations.map((c) => c._id)
+    const unreadAgg = await Message.aggregate([
+      {
+        $match: {
+          conversation: { $in: convIds },
+          sender: { $ne: req.user._id },
+          isRead: false,
+        },
+      },
+      { $group: { _id: '$conversation', count: { $sum: 1 } } },
+    ])
+    const unreadMap = Object.fromEntries(unreadAgg.map((u) => [String(u._id), u.count]))
+
+    const result = conversations.map((c) => ({
+      ...c.toObject(),
+      unreadCount: unreadMap[String(c._id)] || 0,
+    }))
+
+    return sendResponse(res, 200, true, 'Danh sách cuộc hội thoại', { conversations: result })
   } catch (error) {
     return sendResponse(res, 500, false, error.message)
   }
@@ -93,7 +113,6 @@ exports.getMessages = async (req, res) => {
 // GET /api/conversations/unread-count
 exports.getUnreadCount = async (req, res) => {
   try {
-    // Tìm các conversation của user
     const convIds = (await Conversation.find({ participants: req.user._id }).select('_id')).map((c) => c._id)
     const count = await Message.countDocuments({
       conversation: { $in: convIds },
@@ -101,6 +120,28 @@ exports.getUnreadCount = async (req, res) => {
       isRead: false,
     })
     return sendResponse(res, 200, true, 'OK', { count })
+  } catch (error) {
+    return sendResponse(res, 500, false, error.message)
+  }
+}
+
+// PATCH /api/conversations/:id/read
+exports.markRead = async (req, res) => {
+  try {
+    const conv = await Conversation.findById(req.params.id)
+    if (!conv) return sendResponse(res, 404, false, 'Không tìm thấy cuộc hội thoại')
+    if (!conv.participants.map(String).includes(String(req.user._id)))
+      return sendResponse(res, 403, false, 'Không có quyền')
+
+    await Message.updateMany(
+      { conversation: req.params.id, sender: { $ne: req.user._id }, isRead: false },
+      { isRead: true }
+    )
+
+    const emitUnreadCount = req.app.get('emitUnreadCount')
+    if (emitUnreadCount) emitUnreadCount(String(req.user._id)).catch(() => {})
+
+    return sendResponse(res, 200, true, 'Đã đánh dấu đã đọc')
   } catch (error) {
     return sendResponse(res, 500, false, error.message)
   }

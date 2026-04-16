@@ -1,205 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { Link, useSearchParams } from 'react-router-dom'
-import {
-  Send, MessageCircle, ArrowLeft, Paperclip, X, ImageIcon,
-  Film, CalendarPlus, Calendar, Clock,
-} from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/vi'
+import { MessageCircle } from 'lucide-react'
+
 import {
-  getConversationsApi, createConversationApi,
-  getMessagesApi, uploadChatMediaApi,
+  getConversationsApi,
+  createConversationApi,
+  getMessagesApi,
+  uploadChatMediaApi,
+  markConversationReadApi,
 } from '@/services/chatService'
-import { createAppointmentApi } from '@/services/appointmentService'
 import { getSocket } from '@/hooks/useSocket'
-import { AppointmentBubble } from '@/components/rooms/AppointmentBubble'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog'
+
+import { ConversationList }    from './components/ConversationList'
+import { ChatHeader }          from './components/ChatHeader'
+import { MessageBubble, TypingBubble } from './components/MessageBubble'
+import { ChatInput }           from './components/ChatInput'
+import { BookingInChatDialog } from './components/BookingInChatDialog'
 import { cn } from '@/lib/utils'
 
 dayjs.extend(relativeTime)
 dayjs.locale('vi')
 
-// ── Avatar ─────────────────────────────────────────────────────────────────
-function Avatar({ name = '?', size = 'sm', online }) {
-  const sc = size === 'sm' ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'
-  const dc = size === 'sm' ? 'h-2.5 w-2.5' : 'h-3 w-3'
-  return (
-    <div className="relative shrink-0">
-      <div className={cn('flex items-center justify-center rounded-full bg-primary/20 font-bold text-primary', sc)}>
-        {(name || '?')[0].toUpperCase()}
-      </div>
-      {online !== undefined && (
-        <span className={cn('absolute -bottom-0 -right-0 rounded-full border-2 border-background', dc, online ? 'bg-emerald-500' : 'bg-muted-foreground/40')} />
-      )}
-    </div>
-  )
-}
-
-// ── Typing dots ─────────────────────────────────────────────────────────────
-function TypingBubble() {
-  return (
-    <div className="flex items-end gap-2">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">…</div>
-      <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm bg-muted px-4 py-3">
-        {[0, 1, 2].map((i) => (
-          <span key={i} className="h-2 w-2 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── AttachmentGrid ───────────────────────────────────────────────────────────
-function AttachmentGrid({ attachments }) {
-  if (!attachments?.length) return null
-  return (
-    <div className={cn('grid gap-1 mt-1', attachments.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
-      {attachments.map((att, i) =>
-        att.type === 'image' ? (
-          <a key={i} href={att.url} target="_blank" rel="noreferrer">
-            <img src={att.url} alt="" className="rounded-lg object-cover max-h-48 w-full cursor-pointer hover:opacity-90 transition-opacity" />
-          </a>
-        ) : (
-          <video key={i} src={att.url} controls className="rounded-lg max-h-48 w-full bg-black" />
-        )
-      )}
-    </div>
-  )
-}
-
-// ── In-chat Booking Dialog ───────────────────────────────────────────────────
-function BookingDialog({ open, onClose, conv, conversationId, onBooked }) {
-  const room = conv?.room
-  const [date, setDate]     = useState('')
-  const [slot, setSlot]     = useState('morning')
-  const [note, setNote]     = useState('')
-  const [saving, setSaving] = useState(false)
-
-  const minDate = dayjs().add(1, 'day').format('YYYY-MM-DD')
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!room?._id || !date) return
-    try {
-      setSaving(true)
-      const res = await createAppointmentApi({
-        roomId: room._id,
-        date,
-        timeSlot: slot,
-        note: note.trim(),
-        conversationId,
-      })
-      toast.success('Đã gửi lịch hẹn!')
-      onBooked?.(res.data?.data?.appointment)
-      onClose()
-      setDate(''); setNote('')
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Đặt lịch thất bại')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CalendarPlus className="h-4 w-4 text-primary" />
-            Đặt lịch xem phòng
-          </DialogTitle>
-        </DialogHeader>
-        {room ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Room preview */}
-            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-2.5">
-              {room.images?.[0] && (
-                <img src={room.images[0]} alt={room.title} className="h-10 w-10 rounded-md object-cover shrink-0" />
-              )}
-              <p className="text-sm font-medium line-clamp-2">{room.title}</p>
-            </div>
-
-            {/* Date */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />Ngày xem
-              </label>
-              <input
-                type="date"
-                min={minDate}
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
-              />
-            </div>
-
-            {/* Time slot */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />Khung giờ
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { v: 'morning',   l: 'Sáng',   sub: '8h–12h' },
-                  { v: 'afternoon', l: 'Chiều',   sub: '13h–17h' },
-                  { v: 'evening',   l: 'Tối',     sub: '18h–20h' },
-                ].map(({ v, l, sub }) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setSlot(v)}
-                    className={cn(
-                      'rounded-lg border py-2 text-center text-xs font-medium transition-colors',
-                      slot === v
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border hover:border-primary/40'
-                    )}
-                  >
-                    <p>{l}</p>
-                    <p className="text-[10px] text-muted-foreground">{sub}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Note */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Lời nhắn (tùy chọn)</label>
-              <Input
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="VD: Mình đến khoảng 9h sáng..."
-                maxLength={200}
-              />
-            </div>
-
-            <DialogFooter className="gap-2 pt-1">
-              <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-              <Button type="submit" disabled={!date || saving}>
-                {saving ? 'Đang gửi...' : 'Gửi lịch hẹn'}
-              </Button>
-            </DialogFooter>
-          </form>
-        ) : (
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            Cuộc hội thoại này không gắn với phòng trọ nào.
-          </p>
-        )}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-// ── Main Page ────────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function MessagesPage() {
   const user = useSelector((s) => s.auth?.user)
   const [searchParams] = useSearchParams()
@@ -213,7 +40,8 @@ export default function MessagesPage() {
   const [mediaFiles, setMediaFiles]       = useState([])
   const [uploading, setUploading]         = useState(false)
   const [bookingOpen, setBookingOpen]     = useState(false)
-  // Pending: lazy conv creation
+
+  // Pending lazy conv creation
   const [pendingTo, setPendingTo]     = useState(null)
   const [pendingRoom, setPendingRoom] = useState(null)
 
@@ -223,13 +51,27 @@ export default function MessagesPage() {
   const bottomRef      = useRef(null)
   const typingTimerRef = useRef(null)
   const isTypingRef    = useRef(false)
-  const mediaInputRef  = useRef(null)
-  // appointmentBubble refs keyed by appointmentId for live updates
-  const apptBubbleRefs = useRef({})
 
   const socket = getSocket()
 
-  // ── Load conversations ─────────────────────────────────────────────────
+  // ── Mark conversation as read ────────────────────────────────────────────
+  const markRead = useCallback((convId) => {
+    if (!convId || convId === '__pending__') return
+    // Optimistic: zero out locally
+    setConversations((prev) =>
+      prev.map((c) => c._id === convId ? { ...c, unreadCount: 0 } : c)
+    )
+    // Tell server
+    markConversationReadApi?.(convId).catch(() => {})
+  }, [])
+
+  // ── Select conversation ──────────────────────────────────────────────────
+  const selectConv = useCallback((convId) => {
+    setActiveConvId(convId)
+    markRead(convId)
+  }, [markRead])
+
+  // ── Load conversations ───────────────────────────────────────────────────
   useEffect(() => {
     if (!socket.connected) socket.connect()
     if (user?._id) socket.emit('join_user', user._id)
@@ -238,8 +80,10 @@ export default function MessagesPage() {
       .then((res) => {
         const convs = res.data?.data?.conversations || []
         setConversations(convs)
+
         const uniqueIds = [...new Set(
-          convs.flatMap((c) => c.participants || [])
+          convs
+            .flatMap((c) => c.participants || [])
             .filter((p) => String(p._id) !== String(user?._id))
             .map((p) => String(p._id))
         )]
@@ -250,7 +94,7 @@ export default function MessagesPage() {
       .catch(() => {})
       .finally(() => setLoadingConvs(false))
 
-    // Auto-open via ?to= — chỉ mở, không tạo
+    // Auto-open via ?to=
     const toUser = searchParams.get('to')
     const roomId = searchParams.get('room')
     if (toUser) {
@@ -260,8 +104,10 @@ export default function MessagesPage() {
           c.participants?.some((p) => String(p._id) === String(toUser))
         )
         if (existing) {
-          setConversations((prev) => prev.find((c) => c._id === existing._id) ? prev : [existing, ...prev])
-          setActiveConvId(existing._id)
+          setConversations((prev) =>
+            prev.find((c) => c._id === existing._id) ? prev : [existing, ...prev]
+          )
+          selectConv(existing._id)
         } else {
           setPendingTo(toUser)
           setPendingRoom(roomId)
@@ -271,9 +117,12 @@ export default function MessagesPage() {
     }
   }, [user?._id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Load messages ──────────────────────────────────────────────────────
+  // ── Load messages when conv changes ─────────────────────────────────────
   useEffect(() => {
-    if (!activeConvId || activeConvId === '__pending__') { setMessages([]); return }
+    if (!activeConvId || activeConvId === '__pending__') {
+      setMessages([])
+      return
+    }
     setLoadingMsgs(true)
     socket.emit('join_conversation', activeConvId)
     getMessagesApi(activeConvId)
@@ -282,35 +131,69 @@ export default function MessagesPage() {
       .finally(() => setLoadingMsgs(false))
   }, [activeConvId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Socket listeners ───────────────────────────────────────────────────
+  // ── Socket listeners ─────────────────────────────────────────────────────
   useEffect(() => {
     const onMsg = (msg) => {
-      if (msg.conversation === activeConvId || msg.conversation?._id === activeConvId) {
+      const convId = msg.conversation?._id || msg.conversation
+
+      if (convId === activeConvId) {
+        // Conversation is open — append immediately
         setMessages((prev) => [...prev, msg])
         setConversations((prev) =>
           prev.map((c) =>
-            c._id === activeConvId ? { ...c, lastMessage: msg, lastMessageAt: msg.createdAt } : c
+            c._id === convId
+              ? { ...c, lastMessage: msg, lastMessageAt: msg.createdAt, unreadCount: 0 }
+              : c
           )
         )
+        // mark read on server since we're viewing it
+        markRead(convId)
+      } else {
+        // Conversation not open — increment unread
+        setConversations((prev) => {
+          const exists = prev.find((c) => c._id === convId)
+          if (exists) {
+            return prev.map((c) =>
+              c._id === convId
+                ? { ...c, lastMessage: msg, lastMessageAt: msg.createdAt, unreadCount: (c.unreadCount || 0) + 1 }
+                : c
+            )
+          }
+          // New conversation arrived — prepend it
+          return [{ _id: convId, lastMessage: msg, lastMessageAt: msg.createdAt, unreadCount: 1, participants: [msg.sender].filter(Boolean) }, ...prev]
+        })
       }
+
+      // Clear typing for this sender
       if (msg.sender?._id) {
         setTypingUsers((prev) => {
-          const s = new Set(prev[msg.conversation] || [])
+          const s = new Set(prev[convId] || [])
           s.delete(String(msg.sender._id))
-          return { ...prev, [msg.conversation]: s }
+          return { ...prev, [convId]: s }
         })
       }
     }
+
     const onOnline  = ({ userId }) => setOnlineUsers((p) => ({ ...p, [userId]: true }))
     const onOffline = ({ userId }) => setOnlineUsers((p) => ({ ...p, [userId]: false }))
+
     const onTypingStart = ({ conversationId, userId }) => {
       if (String(userId) === String(user?._id)) return
-      setTypingUsers((p) => { const s = new Set(p[conversationId] || []); s.add(String(userId)); return { ...p, [conversationId]: s } })
+      setTypingUsers((p) => {
+        const s = new Set(p[conversationId] || [])
+        s.add(String(userId))
+        return { ...p, [conversationId]: s }
+      })
     }
     const onTypingStop = ({ conversationId, userId }) => {
-      setTypingUsers((p) => { const s = new Set(p[conversationId] || []); s.delete(String(userId)); return { ...p, [conversationId]: s } })
+      setTypingUsers((p) => {
+        const s = new Set(p[conversationId] || [])
+        s.delete(String(userId))
+        return { ...p, [conversationId]: s }
+      })
     }
-    // Cập nhật trạng thái AppointmentBubble real-time
+
+    // Real-time appointment status update
     const onApptUpdate = ({ appointmentId, status }) => {
       setMessages((prev) =>
         prev.map((m) =>
@@ -337,11 +220,14 @@ export default function MessagesPage() {
       socket.off('typing_stop', onTypingStop)
       socket.off('appointment_updated', onApptUpdate)
     }
-  }, [activeConvId, socket, user?._id])
+  }, [activeConvId, socket, user?._id, markRead])
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  // ── Auto scroll ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
-  // ── Typing ─────────────────────────────────────────────────────────────
+  // ── Typing emit ──────────────────────────────────────────────────────────
   const emitTyping = useCallback(() => {
     if (!activeConvId || !user?._id || activeConvId === '__pending__') return
     if (!isTypingRef.current) {
@@ -355,9 +241,9 @@ export default function MessagesPage() {
     }, 2000)
   }, [activeConvId, user?._id, socket])
 
-  // ── Send ───────────────────────────────────────────────────────────────
+  // ── Send message ─────────────────────────────────────────────────────────
   const handleSend = async (e) => {
-    e.preventDefault()
+    e?.preventDefault()
     if ((!input.trim() && mediaFiles.length === 0) || !activeConvId || !user) return
 
     let convId = activeConvId
@@ -371,11 +257,16 @@ export default function MessagesPage() {
         const conv = res.data?.data?.conversation
         if (!conv) return
         convId = conv._id
-        setConversations((prev) => prev.find((c) => c._id === conv._id) ? prev : [conv, ...prev])
+        setConversations((prev) =>
+          prev.find((c) => c._id === conv._id) ? prev : [conv, ...prev]
+        )
         setActiveConvId(conv._id)
         setPendingTo(null); setPendingRoom(null)
         socket.emit('join_conversation', conv._id)
-      } catch { toast.error('Không thể mở cuộc hội thoại'); return }
+      } catch {
+        toast.error('Không thể mở cuộc hội thoại')
+        return
+      }
     }
 
     // Upload media
@@ -386,224 +277,156 @@ export default function MessagesPage() {
         mediaFiles.forEach((f) => fd.append('files', f))
         const res = await uploadChatMediaApi(fd)
         attachments = res.data?.data?.attachments || []
-      } catch { toast.error('Upload file thất bại'); setUploading(false); return }
-      finally { setUploading(false); setMediaFiles([]) }
+      } catch {
+        toast.error('Upload file thất bại')
+        setUploading(false)
+        return
+      } finally {
+        setUploading(false)
+        setMediaFiles([])
+      }
     }
 
-    socket.emit('send_message', { conversationId: convId, senderId: user._id, content: input.trim(), attachments })
+    socket.emit('send_message', {
+      conversationId: convId,
+      senderId: user._id,
+      content: input.trim(),
+      attachments,
+    })
+
     clearTimeout(typingTimerRef.current)
     isTypingRef.current = false
     setInput('')
   }
 
-  // ── Derived ────────────────────────────────────────────────────────────
-  const activeConv   = conversations.find((c) => c._id === activeConvId)
-  const otherUser    = activeConv?.participants?.find((p) => String(p._id) !== String(user?._id))
-  const isOtherOnline  = otherUser ? onlineUsers[String(otherUser._id)] : false
+  // ── Derived ──────────────────────────────────────────────────────────────
+  const activeConv     = conversations.find((c) => c._id === activeConvId)
+  const otherUser      = activeConv?.participants?.find((p) => String(p._id) !== String(user?._id))
+  const isOtherOnline  = otherUser ? !!onlineUsers[String(otherUser._id)] : false
   const isOtherTyping  = activeConvId ? (typingUsers[activeConvId]?.size || 0) > 0 : false
-  const mediaPreviews  = mediaFiles.map((f) => ({ url: URL.createObjectURL(f), type: f.type }))
 
-  // ── Render ─────────────────────────────────────────────────────────────
+  // Total unread count for page title
+  const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex overflow-hidden border-t" style={{ height: 'calc(100svh - var(--navbar-h))' }}>
-
-      {/* ── Conversation List ────────────────────────────────────────── */}
-      <div className={cn('w-full shrink-0 overflow-y-auto border-r bg-background md:w-72 lg:w-80', activeConvId && 'hidden md:block')}>
-        <div className="border-b px-4 py-3">
-          <h1 className="font-semibold">Tin nhắn</h1>
-        </div>
-        {loadingConvs ? (
-          <div className="space-y-1 p-2">
-            {[0,1,2].map((i) => (
-              <div key={i} className="flex gap-3 rounded-lg p-3">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="flex-1 space-y-2 py-1">
-                  <Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-full" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : conversations.length === 0 ? (
-          <div className="p-6 text-center text-sm text-muted-foreground">
-            <MessageCircle className="mx-auto mb-2 h-8 w-8 opacity-40" />
-            Chưa có cuộc hội thoại nào
-          </div>
-        ) : (
-          <div className="space-y-0.5 p-1">
-            {conversations.map((conv) => {
-              const other   = conv.participants?.find((p) => String(p._id) !== String(user?._id))
-              const isActive = conv._id === activeConvId
-              const hasTyp  = (typingUsers[conv._id]?.size || 0) > 0
-              const lastTxt = conv.lastMessage?.messageType === 'appointment'
-                ? '📅 Lịch hẹn xem phòng'
-                : conv.lastMessage?.content || (conv.lastMessage?.attachments?.length ? '📎 File đính kèm' : conv.room?.title || 'Bắt đầu hội thoại')
-              return (
-                <button
-                  key={conv._id}
-                  onClick={() => setActiveConvId(conv._id)}
-                  className={cn('flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors', isActive ? 'bg-primary/10' : 'hover:bg-muted/60')}
-                >
-                  <Avatar name={other?.name} online={onlineUsers[String(other?._id)]} />
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-sm font-medium truncate">{other?.name || 'Người dùng'}</p>
-                    <p className={cn('truncate text-xs', hasTyp ? 'text-primary italic' : 'text-muted-foreground')}>
-                      {hasTyp ? 'Đang nhập...' : lastTxt}
-                    </p>
-                  </div>
-                  {conv.lastMessageAt && (
-                    <span className="shrink-0 text-xs text-muted-foreground">{dayjs(conv.lastMessageAt).fromNow(true)}</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+    <div
+      className="flex overflow-hidden border-t"
+      style={{ height: 'calc(100svh - var(--navbar-h, 56px))' }}
+    >
+      {/* ── Sidebar: Conversation List ─────────────────────────────────── */}
+      <div
+        className={cn(
+          'flex flex-col w-full shrink-0 border-r bg-background md:w-72 lg:w-80',
+          activeConvId && 'hidden md:flex'
         )}
+      >
+        {/* Sidebar header */}
+        <div className="flex items-center justify-between border-b px-4 py-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <h1 className="font-semibold text-base">Tin nhắn</h1>
+            {totalUnread > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                {totalUnread > 99 ? '99+' : totalUnread}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto">
+          <ConversationList
+            conversations={conversations}
+            activeConvId={activeConvId}
+            onSelect={selectConv}
+            currentUserId={user?._id}
+            onlineUsers={onlineUsers}
+            typingUsers={typingUsers}
+            loading={loadingConvs}
+          />
+        </div>
       </div>
 
-      {/* ── Chat Window ──────────────────────────────────────────────── */}
-      <div className={cn('flex flex-1 flex-col', !activeConvId && 'hidden md:flex')}>
+      {/* ── Main: Chat Window ─────────────────────────────────────────────── */}
+      <div className={cn('flex flex-1 flex-col min-w-0', !activeConvId && 'hidden md:flex')}>
         {!activeConvId ? (
+          /* Empty state */
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
-            <MessageCircle className="h-12 w-12 opacity-30" />
-            <p>Chọn một cuộc hội thoại để bắt đầu</p>
+            <MessageCircle className="h-14 w-14 opacity-20" />
+            <p className="text-sm">Chọn một cuộc hội thoại để bắt đầu</p>
           </div>
         ) : (
           <>
             {/* Header */}
-            <div className="flex items-center gap-3 border-b bg-background px-4 py-3">
-              <button className="md:hidden" onClick={() => setActiveConvId(null)}>
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <Avatar name={otherUser?.name} size="md" online={isOtherOnline} />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold leading-tight">{otherUser?.name}</p>
-                <p className="text-xs h-4">
-                  {isOtherTyping
-                    ? <span className="text-primary italic animate-pulse">Đang nhập...</span>
-                    : isOtherOnline
-                      ? <span className="text-emerald-600">● Online</span>
-                      : <span className="text-muted-foreground/60">● Offline</span>}
-                </p>
-                {activeConv?.room && (
-                  <Link to={`/rooms/${activeConv.room.slug}`} className="text-xs text-primary hover:underline">
-                    {activeConv.room.title}
-                  </Link>
-                )}
-              </div>
-            </div>
+            <ChatHeader
+              otherUser={otherUser}
+              isOnline={isOtherOnline}
+              isTyping={isOtherTyping}
+              conv={activeConv}
+              onBack={() => setActiveConvId(null)}
+              onOpenBooking={() => setBookingOpen(true)}
+            />
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
               {loadingMsgs ? (
-                <div className="space-y-3">
-                  {[0,1,2].map((i) => <Skeleton key={i} className={cn('h-10 w-48 rounded-2xl', i%2===0 ? '' : 'ml-auto')} />)}
+                <div className="space-y-3 pt-2">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className={cn('flex', i % 2 === 0 ? '' : 'justify-end')}>
+                      <div className={cn('h-10 w-48 rounded-2xl bg-muted animate-pulse', i % 2 !== 0 && 'bg-primary/20')} />
+                    </div>
+                  ))}
                 </div>
               ) : messages.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground">Bắt đầu cuộc trò chuyện</p>
+                <p className="text-center text-sm text-muted-foreground pt-8">
+                  Bắt đầu cuộc trò chuyện 👋
+                </p>
               ) : (
-                messages.map((msg) => {
+                messages.map((msg, idx) => {
                   const isMine = String(msg.sender?._id || msg.sender) === String(user?._id)
+                  // Show avatar only when sender changes
+                  const prevMsg = messages[idx - 1]
+                  const showAvatar =
+                    !isMine &&
+                    (idx === 0 || String(prevMsg?.sender?._id || prevMsg?.sender) !== String(msg.sender?._id || msg.sender))
+                  // Consider message read if it's not the last message
+                  const isRead = isMine && idx < messages.length - 1
 
-                  // Appointment card
-                  if (msg.messageType === 'appointment' && msg.appointmentRef) {
-                    return (
-                      <div key={msg._id} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
-                        {!isMine && <Avatar name={msg.sender?.name} size="sm" />}
-                        <div className="mx-2">
-                          <AppointmentBubble appt={msg.appointmentRef} isMine={isMine} />
-                          <p className={cn('mt-1 text-[10px]', isMine ? 'text-right text-muted-foreground' : 'text-muted-foreground')}>
-                            {dayjs(msg.createdAt).format('HH:mm')}
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  }
-
-                  // Text + media bubble
                   return (
-                    <div key={msg._id} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
-                      {!isMine && <Avatar name={msg.sender?.name} size="sm" />}
-                      <div className={cn('mx-2 max-w-[70%] rounded-2xl px-4 py-2.5 text-sm', isMine ? 'rounded-tr-sm bg-primary text-primary-foreground' : 'rounded-tl-sm bg-muted')}>
-                        {msg.content && <p>{msg.content}</p>}
-                        <AttachmentGrid attachments={msg.attachments} />
-                        <p className={cn('mt-1 text-[10px]', isMine ? 'text-primary-foreground/60' : 'text-muted-foreground')}>
-                          {dayjs(msg.createdAt).format('HH:mm')}
-                        </p>
-                      </div>
-                    </div>
+                    <MessageBubble
+                      key={msg._id || idx}
+                      msg={msg}
+                      isMine={isMine}
+                      showAvatar={showAvatar}
+                      isRead={isRead}
+                    />
                   )
                 })
               )}
-              {isOtherTyping && <TypingBubble />}
+
+              {isOtherTyping && <TypingBubble name={otherUser?.name} />}
               <div ref={bottomRef} />
             </div>
 
-            {/* Media preview strip */}
-            {mediaFiles.length > 0 && (
-              <div className="flex gap-2 border-t bg-muted/30 px-3 pt-2 pb-1 overflow-x-auto">
-                {mediaPreviews.map((p, i) => (
-                  <div key={i} className="relative shrink-0">
-                    {p.type.startsWith('image') ? (
-                      <img src={p.url} alt="" className="h-14 w-14 rounded-lg object-cover border" />
-                    ) : (
-                      <div className="h-14 w-14 flex items-center justify-center rounded-lg border bg-muted">
-                        <Film className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setMediaFiles((prev) => prev.filter((_, j) => j !== i))}
-                      className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white"
-                    >
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Input bar */}
-            <form onSubmit={handleSend} className="flex items-center gap-2 border-t bg-background p-3">
-              {/* File picker */}
-              <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime,video/webm"
-                multiple className="sr-only"
-                onChange={(e) => { setMediaFiles((p) => [...p, ...Array.from(e.target.files||[])].slice(0,5)); e.target.value='' }}
-              />
-              <Button type="button" size="icon" variant="ghost" className="shrink-0 text-muted-foreground hover:text-foreground"
-                onClick={() => mediaInputRef.current?.click()} title="Đính kèm ảnh/video">
-                <Paperclip className="h-4 w-4" />
-              </Button>
-
-              {/* Calendar button — chỉ hiện khi conv có room */}
-              {activeConv?.room && (
-                <Button type="button" size="icon" variant="ghost"
-                  className="shrink-0 text-muted-foreground hover:text-primary"
-                  onClick={() => setBookingOpen(true)}
-                  title="Đặt lịch xem phòng"
-                >
-                  <CalendarPlus className="h-4 w-4" />
-                </Button>
-              )}
-
-              <Input
-                value={input}
-                onChange={(e) => { setInput(e.target.value); emitTyping() }}
-                placeholder="Nhập tin nhắn..."
-                className="flex-1"
-                autoComplete="off"
-                onKeyDown={(e) => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e) } }}
-              />
-              <Button type="submit" size="icon"
-                disabled={(!input.trim() && mediaFiles.length===0) || uploading}>
-                {uploading ? <ImageIcon className="h-4 w-4 animate-pulse" /> : <Send className="h-4 w-4" />}
-              </Button>
-            </form>
+            {/* Input */}
+            <ChatInput
+              input={input}
+              setInput={setInput}
+              onSubmit={handleSend}
+              onTyping={emitTyping}
+              mediaFiles={mediaFiles}
+              setMediaFiles={setMediaFiles}
+              uploading={uploading}
+              hasRoom={!!activeConv?.room}
+              onOpenBooking={() => setBookingOpen(true)}
+              disabled={!activeConvId}
+            />
           </>
         )}
       </div>
 
       {/* Booking dialog */}
-      <BookingDialog
+      <BookingInChatDialog
         open={bookingOpen}
         onClose={() => setBookingOpen(false)}
         conv={activeConv}

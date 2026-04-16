@@ -3,7 +3,7 @@ const multer = require('multer')
 const { authenticate } = require('../middlewares/auth')
 const {
   getConversations, createConversation,
-  getMessages, getUnreadCount, uploadChatMedia,
+  getMessages, getUnreadCount, uploadChatMedia, markRead,
 } = require('../controllers/conversationController')
 
 const router = express.Router()
@@ -14,6 +14,7 @@ router.get('/', getConversations)
 router.post('/', createConversation)
 router.get('/unread-count', getUnreadCount)
 router.get('/:id/messages', getMessages)
+router.patch('/:id/read', markRead)
 
 // ── Media Upload for Chat ────────────────────────────────────────────────
 const storage = multer.memoryStorage()
