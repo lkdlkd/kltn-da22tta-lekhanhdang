@@ -27,6 +27,12 @@ def health_check():
     return {"status": "OK", "service": "AI Service"}
 
 
-# Import routers (sẽ thêm trong các phase tiếp theo)
-# from routers import recommend
-# app.include_router(recommend.router, prefix="/recommend", tags=["Recommend"])
+# ── Routers ──────────────────────────────────────────────────────────────────
+from routers import recommend
+app.include_router(recommend.router, prefix="/recommend", tags=["Recommend"])
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+

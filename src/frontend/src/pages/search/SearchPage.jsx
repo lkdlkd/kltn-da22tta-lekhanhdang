@@ -5,8 +5,9 @@ import {
   Search, SlidersHorizontal, Map as MapIcon, X,
   ChevronLeft, ChevronRight, ArrowUpDown, RotateCcw,
   Wifi, Wind, WashingMachine, Package, ChefHat, Car,
-  ShieldCheck, Flame, Sofa, Bath, LayoutGrid, DollarSign, Maximize2,
+  ShieldCheck, Flame, Sofa, Bath, LayoutGrid, DollarSign, Maximize2, Sparkles,
 } from 'lucide-react'
+import { RoomFinderWizard } from '@/components/rooms/RoomFinderWizard'
 import { searchRoomsApi } from '@/services/roomService'
 import { RoomCard } from '@/components/rooms/RoomCard'
 import { Button } from '@/components/ui/button'
@@ -340,10 +341,14 @@ export default function SearchPage() {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 })
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [showMap, setShowMap] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [userLocation, setUserLocation] = useState(null)
   const [highlightedId, setHighlightedId] = useState(null)
   const [qInput, setQInput] = useState(searchParams.get('q') || '')
   const cardRefs = useRef({})
+  // Riêng cho bản đồ — không bị giới hạn phân trang
+  const [mapRooms, setMapRooms] = useState([])
+  const [mapLoading, setMapLoading] = useState(false)
 
   /* filters ── URL-driven */
   const filters = useMemo(() => ({
@@ -406,6 +411,30 @@ export default function SearchPage() {
     return () => ctrl.abort()
   }, [searchParams, page, userLocation])
 
+  /* Fetch ALL matching rooms for map pins (không phân trang) */
+  useEffect(() => {
+    if (!showMap) return
+    const ctrl = new AbortController()
+    ;(async () => {
+      try {
+        setMapLoading(true)
+        const params = {
+          ...filters, page: 1, limit: 200,
+          amenities: filters.amenities.length ? filters.amenities : undefined,
+          minPrice: filters.minPrice > 0 ? filters.minPrice : undefined,
+          maxPrice: filters.maxPrice < PRICE_MAX ? filters.maxPrice : undefined,
+          minArea: filters.minArea > 0 ? filters.minArea : undefined,
+          maxArea: filters.maxArea < AREA_MAX ? filters.maxArea : undefined,
+        }
+        if (filters.radius && userLocation) { params.lat = userLocation.lat; params.lng = userLocation.lng }
+        const res = await searchRoomsApi(params, { signal: ctrl.signal })
+        setMapRooms(res.data?.data?.rooms || [])
+      } catch (e) { if (e.name !== 'CanceledError') setMapRooms([]) }
+      finally { setMapLoading(false) }
+    })()
+    return () => ctrl.abort()
+  }, [showMap, searchParams, userLocation])
+
   /* Handlers */
   const handleChange = useCallback((key, value) => {
     setSearchParams(prev => {
@@ -446,14 +475,22 @@ export default function SearchPage() {
     cardRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 
-  /* Map data */
-  const roomPos = useMemo(() =>
-    rooms.filter(r => r.location?.coordinates?.length === 2).map(r => ({
-      id: r._id, slug: r.slug, title: r.title, price: r.price,
-      lat: r.location.coordinates[1], lng: r.location.coordinates[0],
-    })), [rooms])
+  /* Map data — dùng mapRooms khi bản đồ mở để hiển thị TẤT CẢ pin */
+  const roomPos = useMemo(() => {
+    const source = showMap ? mapRooms : rooms
+    return source
+      .filter(r => r.location?.coordinates?.length === 2)
+      .map(r => ({
+        id: r._id, slug: r.slug, title: r.title, price: r.price,
+        lat: r.location.coordinates[1], lng: r.location.coordinates[0],
+      }))
+  }, [showMap, mapRooms, rooms])
 
-  const mapCenter = roomPos.length ? [roomPos[0].lat, roomPos[0].lng] : [10.2547, 105.9722]
+  const mapCenter = useMemo(() => {
+    if (userLocation) return [userLocation.lat, userLocation.lng]
+    if (roomPos.length) return [roomPos[0].lat, roomPos[0].lng]
+    return [10.2547, 105.9722] // TP. Vĩnh Long
+  }, [userLocation, roomPos])
 
   /* Active filter tags */
   const tags = useMemo(() => {
@@ -528,6 +565,18 @@ export default function SearchPage() {
               {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
+
+          {/* Wizard button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 gap-1.5 rounded-lg shrink-0 border-primary/40 text-primary hover:bg-primary/5 hidden sm:flex"
+            onClick={() => setWizardOpen(true)}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Tìm nhanh
+          </Button>
 
           {/* Map toggle — sm+ */}
           <Button
@@ -645,8 +694,11 @@ export default function SearchPage() {
         {showMap && (
           <div className="hidden sm:flex w-[400px] xl:w-[480px] shrink-0 flex-col border-l">
             <div className="flex items-center justify-between border-b px-4 py-2.5 bg-muted/20 shrink-0">
-              <span className="text-xs font-semibold text-muted-foreground">
-                {roomPos.length} phòng trên bản đồ
+              <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                {mapLoading
+                  ? <><span className="h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin inline-block" /> Đang tải bản đồ…</>
+                  : <>{roomPos.length} phòng trên bản đồ</>
+                }
               </span>
               <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block border border-red-700" />Phòng</span>
@@ -732,6 +784,17 @@ export default function SearchPage() {
           </Button>
         </div>
       </Sheet>
+      {/* Mobile toolbar: wizard button */}
+      <button
+        type="button"
+        onClick={() => setWizardOpen(true)}
+        className="fixed bottom-20 right-4 z-30 flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg sm:hidden"
+      >
+        <Sparkles className="h-4 w-4" /> Tìm nhanh
+      </button>
+
+      {/* Wizard */}
+      <RoomFinderWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
     </div>
   )
 }

@@ -20,6 +20,7 @@ const notificationRoutes = require('./routes/notificationRoutes')
 const adminRoutes = require('./routes/adminRoutes')
 const reportRoutes = require('./routes/reportRoutes')
 const appointmentRoutes = require('./routes/appointmentRoutes')
+const recommendRoutes = require('./routes/recommendRoutes')
 const { compareRooms } = require('./controllers/compareController')
 const sendResponse = require('./utils/apiResponse')
 
@@ -227,6 +228,7 @@ app.use('/api/notifications', notificationRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/reports', reportRoutes)
 app.use('/api/appointments', appointmentRoutes)
+app.use('/api/recommend', recommendRoutes)
 app.post('/api/rooms/compare', compareRooms)
 
 // Health check

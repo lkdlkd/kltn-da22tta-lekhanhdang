@@ -30,6 +30,7 @@ import { BookingDialog } from '@/components/rooms/BookingDialog'
 import { ReportButton } from '@/components/rooms/ReportButton'
 import { CompareButton } from '@/components/compare/CompareBar'
 import { PanoramaViewer } from '@/components/rooms/PanoramaViewer'
+import { SimilarRooms } from '@/components/rooms/SimilarRooms'
 import { cn } from '@/lib/utils'
 
 // ── Config ─────────────────────────────────────────────────────────────────
@@ -850,6 +851,13 @@ export default function RoomDetailPage() {
           )}
         </div>
       </div>
+
+      {/* ── SIMILAR ROOMS ──────────────────────────────────────────────── */}
+      {room?._id && (
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-12">
+          <SimilarRooms roomId={room._id} limit={6} />
+        </div>
+      )}
 
       {/* ── OVERLAYS ──────────────────────────────────────────────────── */}
       <BookingDialog open={bookingOpen} onClose={() => setBookingOpen(false)} roomId={room?._id} roomTitle={room?.title} />

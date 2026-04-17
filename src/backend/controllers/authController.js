@@ -218,8 +218,9 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback'
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 
-// GET /api/auth/google — redirect user to Google consent screen
+// GET /api/auth/google?role=student|landlord — redirect to Google consent
 exports.googleRedirect = (req, res) => {
+  const role = ['student', 'landlord'].includes(req.query.role) ? req.query.role : 'student'
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
     redirect_uri: GOOGLE_CALLBACK_URL,
@@ -227,15 +228,19 @@ exports.googleRedirect = (req, res) => {
     scope: 'openid email profile',
     access_type: 'offline',
     prompt: 'select_account',
+    state: role,  // carry role through OAuth round-trip
   })
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)
 }
 
-// GET /api/auth/google/callback — exchange code for tokens, upsert user, redirect FE
+// GET /api/auth/google/callback — exchange code → upsert user → redirect FE
 exports.googleCallback = async (req, res) => {
   try {
-    const { code } = req.query
+    const { code, state } = req.query
     if (!code) return res.redirect(`${FRONTEND_URL}/login?error=google_failed`)
+
+    // Role from state (set during redirect); fallback to student
+    const chosenRole = ['student', 'landlord'].includes(state) ? state : 'student'
 
     // Exchange code for tokens
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -264,25 +269,26 @@ exports.googleCallback = async (req, res) => {
     // Upsert user
     let user = await User.findOne({ email })
     if (!user) {
+      // Brand-new user — use chosenRole from state
       const username = await generateUsername(email)
       user = await User.create({
         name: name || email.split('@')[0],
         email,
         username,
         avatar: picture || '',
-        role: 'student',
+        role: chosenRole,
         isEmailVerified: true,
         googleId,
-        // No password — Google users won't login with password
         password: crypto.randomBytes(20).toString('hex'),
       })
     } else if (!user.googleId) {
-      // Link existing account with Google
+      // Link existing account with Google (keep existing role)
       user.googleId = googleId
       if (!user.avatar && picture) user.avatar = picture
       user.isEmailVerified = true
       await user.save()
     }
+    // Existing Google users: role is NOT changed (they chose once at sign-up)
 
     const token = signToken(user._id)
     res.redirect(`${FRONTEND_URL}/login?token=${token}`)
