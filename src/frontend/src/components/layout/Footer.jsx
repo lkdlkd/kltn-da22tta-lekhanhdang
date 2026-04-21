@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Home, Github, Mail, MapPin, Phone } from 'lucide-react'
+import { Home, Mail, MapPin, Phone, Globe, GraduationCap } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 
 const FOOTER_LINKS = {
@@ -30,27 +30,26 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-12">
 
         {/* Top row */}
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
 
-          {/* Brand */}
-          <div className="space-y-4">
+          {/* Brand — 2 cols wide */}
+          <div className="lg:col-span-2 space-y-4">
             <Link to="/" className="flex items-center gap-2.5 font-bold text-primary">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
                 <Home className="h-4 w-4" />
               </div>
-              <span className="text-base tracking-tight">PhòngTrọ VL</span>
+              <span className="text-base tracking-tight">PhòngTrọ <span className="text-muted-foreground font-normal">VL</span></span>
             </Link>
             <p className="text-sm text-muted-foreground leading-6">
               Hệ thống hỗ trợ tìm kiếm và gợi ý phòng trọ sinh viên tại Vĩnh Long với công nghệ AI Hybrid.
             </p>
-            <div className="space-y-1.5 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
-                <span>Tỉnh Vĩnh Long, Việt Nam</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="h-3.5 w-3.5 shrink-0 text-primary" />
-                <span>support@phongtrovl.vn</span>
+
+            {/* TVU credit */}
+            <div className="flex items-start gap-2.5 rounded-lg border bg-background p-3">
+              <GraduationCap className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground leading-snug">Đồ án tốt nghiệp</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Trường Đại học Trà Vinh</p>
               </div>
             </div>
           </div>
@@ -79,17 +78,28 @@ export function Footer() {
 
         {/* Bottom row */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-          <p>© {year} PhòngTrọ VL. Đồ án tốt nghiệp — Trường Đại học Cửu Long.</p>
+          <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 text-center sm:text-left">
+            <p>© {year} PhòngTrọ VL.</p>
+            <span className="hidden sm:block text-muted-foreground/40">·</span>
+            <p>
+              Đồ án tốt nghiệp — 
+              <a href="https://www.tvu.edu.vn" target="_blank" rel="noreferrer"
+                className="ml-1 font-medium text-foreground hover:text-primary transition-colors">
+                Trường Đại học Trà Vinh
+              </a>
+            </p>
+          </div>
           <div className="flex items-center gap-4">
-            <span>Made with ❤️ in Vĩnh Long</span>
+            <span>Vĩnh Long, Việt Nam</span>
             <a
-              href="https://github.com"
+              href="https://www.tvu.edu.vn"
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1 hover:text-foreground transition-colors"
-              aria-label="GitHub"
+              title="Website ĐH Trà Vinh"
             >
-              <Github className="h-4 w-4" />
+              <Globe className="h-3.5 w-3.5" />
+              <span>tvu.edu.vn</span>
             </a>
           </div>
         </div>

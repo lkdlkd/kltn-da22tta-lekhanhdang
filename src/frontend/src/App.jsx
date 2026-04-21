@@ -90,7 +90,7 @@ export default function App() {
 
           {/* Public routes */}
           <Route path="/" element={<AppLayout><HomePage /></AppLayout>} />
-          <Route path="/search" element={<AppLayout fullHeight><SearchPage /></AppLayout>} />
+          <Route path="/search" element={<AppLayout><SearchPage /></AppLayout>} />
           <Route path="/rooms/:slug" element={<AppLayout><RoomDetailPage /></AppLayout>} />
           <Route path="/landlord/:username" element={<AppLayout><LandlordProfilePage /></AppLayout>} />
 

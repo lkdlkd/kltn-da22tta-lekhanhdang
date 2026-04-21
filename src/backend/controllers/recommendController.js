@@ -1,5 +1,5 @@
-const Room       = require('../models/Room')
-const Favorite   = require('../models/Favorite')
+const Room = require('../models/Room')
+const Favorite = require('../models/Favorite')
 const sendResponse = require('../utils/apiResponse')
 const { callAI } = require('../services/aiProxyService')
 
@@ -9,22 +9,22 @@ const { callAI } = require('../services/aiProxyService')
 function serializeRoom(room) {
   const r = room.toObject ? room.toObject() : { ...room }
   return {
-    _id:           String(r._id),
-    title:         r.title         || '',
-    price:         r.price         || 0,
-    area:          r.area          || 0,
-    capacity:      r.capacity      || 1,
-    roomType:      r.roomType      || 'phòng_trọ',
-    amenities:     r.amenities     || [],
-    location:      r.location,
-    images:        r.images        || [],
-    slug:          r.slug          || '',
-    address:       r.address       || '',
+    _id: String(r._id),
+    title: r.title || '',
+    price: r.price || 0,
+    area: r.area || 0,
+    capacity: r.capacity || 1,
+    roomType: r.roomType || 'phòng_trọ',
+    amenities: r.amenities || [],
+    location: r.location,
+    images: r.images || [],
+    slug: r.slug || '',
+    address: r.address || '',
     averageRating: r.averageRating || 0,
-    reviewCount:   r.reviewCount   || 0,
-    viewCount:     r.viewCount     || 0,
-    landlord:      r.landlord      || null,
-    _behavior:     r._behavior     || 0,
+    reviewCount: r.reviewCount || 0,
+    viewCount: r.viewCount || 0,
+    landlord: r.landlord || null,
+    _behavior: r._behavior || 0,
   }
 }
 
@@ -44,7 +44,7 @@ async function buildBehaviorMap(roomIds) {
 
 function attachBehavior(rooms, favMap) {
   const maxView = Math.max(...rooms.map((r) => r.viewCount || 0), 1)
-  const maxFav  = Math.max(...Object.values(favMap), 1)
+  const maxFav = Math.max(...Object.values(favMap), 1)
 
   return rooms.map((r) => ({
     ...r,
@@ -64,7 +64,7 @@ function fallbackSort(rooms, limit) {
 // ── GET /api/rooms/:id/similar?limit=6 ───────────────────────────────────────
 exports.getSimilarRooms = async (req, res) => {
   try {
-    const limit  = Math.min(Number(req.query.limit) || 6, 12)
+    const limit = Math.min(Number(req.query.limit) || 6, 12)
     const target = await Room.findById(req.params.id).populate('landlord', 'name avatar')
     if (!target) return sendResponse(res, 404, false, 'Không tìm thấy phòng')
 
@@ -72,12 +72,12 @@ exports.getSimilarRooms = async (req, res) => {
 
     // Hard filter: nearby approved rooms, exclude self
     const candidates = await Room.find({
-      _id:         { $ne: target._id },
-      status:      'approved',
+      _id: { $ne: target._id },
+      status: 'approved',
       isAvailable: true,
       location: {
         $near: {
-          $geometry:    { type: 'Point', coordinates: [lng, lat] },
+          $geometry: { type: 'Point', coordinates: [lng, lat] },
           $maxDistance: 15_000, // 15km
         },
       },
@@ -86,17 +86,17 @@ exports.getSimilarRooms = async (req, res) => {
       .populate('landlord', 'name avatar')
 
     // Attach behavior score
-    const allIds  = candidates.map((r) => r._id)
-    const favMap  = await buildBehaviorMap(allIds)
+    const allIds = candidates.map((r) => r._id)
+    const favMap = await buildBehaviorMap(allIds)
     const plainCandidates = attachBehavior(candidates.map(serializeRoom), favMap)
 
     // Call FastAPI
     let rooms
     try {
       rooms = await callAI('similar', {
-        target:    serializeRoom(target),
+        target: serializeRoom(target),
         candidates: plainCandidates,
-        center:    { lat, lng },
+        center: { lat, lng },
         radius_km: 10,
         limit,
       })
@@ -123,7 +123,7 @@ exports.wizardRecommend = async (req, res) => {
 
     // Build MongoDB filter
     const filter = {
-      status:      'approved',
+      status: 'approved',
       isAvailable: true,
     }
 
@@ -132,15 +132,15 @@ exports.wizardRecommend = async (req, res) => {
       if (priceMin !== undefined) filter.price.$gte = Number(priceMin)
       if (priceMax !== undefined) filter.price.$lte = Number(priceMax)
     }
-    if (areaMin)    filter.area     = { $gte: Number(areaMin) }
-    if (capacity)   filter.capacity = { $gte: Number(capacity) }
+    if (areaMin) filter.area = { $gte: Number(areaMin) }
+    if (capacity) filter.capacity = { $gte: Number(capacity) }
     if (roomType && roomType !== 'all') filter.roomType = roomType
 
     // GPS-based geo filter
     if (lat && lng) {
       filter.location = {
         $near: {
-          $geometry:    { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+          $geometry: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
           $maxDistance: Number(radius) * 1000,
         },
       }
@@ -155,8 +155,8 @@ exports.wizardRecommend = async (req, res) => {
     }
 
     // Attach behavior score
-    const allIds  = rawCandidates.map((r) => r._id)
-    const favMap  = await buildBehaviorMap(allIds)
+    const allIds = rawCandidates.map((r) => r._id)
+    const favMap = await buildBehaviorMap(allIds)
     const plainCandidates = attachBehavior(rawCandidates.map(serializeRoom), favMap)
 
     const criteria = { roomType, priceMin, priceMax, areaMin, capacity, amenities, radius }
@@ -167,8 +167,8 @@ exports.wizardRecommend = async (req, res) => {
       rooms = await callAI('wizard', {
         criteria,
         candidates: plainCandidates,
-        center:     lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
-        limit:      effectiveLimit,
+        center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
+        limit: effectiveLimit,
       })
     } catch {
       rooms = fallbackSort(plainCandidates, effectiveLimit)

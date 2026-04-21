@@ -16,10 +16,10 @@ import {
 } from '@/services/chatService'
 import { getSocket } from '@/hooks/useSocket'
 
-import { ConversationList }    from './components/ConversationList'
-import { ChatHeader }          from './components/ChatHeader'
+import { ConversationList } from './components/ConversationList'
+import { ChatHeader } from './components/ChatHeader'
 import { MessageBubble, TypingBubble } from './components/MessageBubble'
-import { ChatInput }           from './components/ChatInput'
+import { ChatInput } from './components/ChatInput'
 import { BookingInChatDialog } from './components/BookingInChatDialog'
 import { cn } from '@/lib/utils'
 
@@ -32,25 +32,25 @@ export default function MessagesPage() {
   const [searchParams] = useSearchParams()
 
   const [conversations, setConversations] = useState([])
-  const [activeConvId, setActiveConvId]   = useState(null)
-  const [messages, setMessages]           = useState([])
-  const [input, setInput]                 = useState('')
-  const [loadingConvs, setLoadingConvs]   = useState(true)
-  const [loadingMsgs, setLoadingMsgs]     = useState(false)
-  const [mediaFiles, setMediaFiles]       = useState([])
-  const [uploading, setUploading]         = useState(false)
-  const [bookingOpen, setBookingOpen]     = useState(false)
+  const [activeConvId, setActiveConvId] = useState(null)
+  const [messages, setMessages] = useState([])
+  const [input, setInput] = useState('')
+  const [loadingConvs, setLoadingConvs] = useState(true)
+  const [loadingMsgs, setLoadingMsgs] = useState(false)
+  const [mediaFiles, setMediaFiles] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [bookingOpen, setBookingOpen] = useState(false)
 
   // Pending lazy conv creation
-  const [pendingTo, setPendingTo]     = useState(null)
+  const [pendingTo, setPendingTo] = useState(null)
   const [pendingRoom, setPendingRoom] = useState(null)
 
   const [onlineUsers, setOnlineUsers] = useState({})
   const [typingUsers, setTypingUsers] = useState({})
 
-  const bottomRef      = useRef(null)
+  const bottomRef = useRef(null)
   const typingTimerRef = useRef(null)
-  const isTypingRef    = useRef(false)
+  const isTypingRef = useRef(false)
 
   const socket = getSocket()
 
@@ -62,7 +62,7 @@ export default function MessagesPage() {
       prev.map((c) => c._id === convId ? { ...c, unreadCount: 0 } : c)
     )
     // Tell server
-    markConversationReadApi?.(convId).catch(() => {})
+    markConversationReadApi?.(convId).catch(() => { })
   }, [])
 
   // ── Select conversation ──────────────────────────────────────────────────
@@ -91,7 +91,7 @@ export default function MessagesPage() {
           socket.emit('check_online', { userIds: uniqueIds }, (r) => { if (r) setOnlineUsers(r) })
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingConvs(false))
 
     // Auto-open via ?to=
@@ -113,7 +113,7 @@ export default function MessagesPage() {
           setPendingRoom(roomId)
           setActiveConvId('__pending__')
         }
-      }).catch(() => {})
+      }).catch(() => { })
     }
   }, [user?._id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -127,7 +127,7 @@ export default function MessagesPage() {
     socket.emit('join_conversation', activeConvId)
     getMessagesApi(activeConvId)
       .then((res) => setMessages(res.data?.data?.messages || []))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingMsgs(false))
   }, [activeConvId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -174,7 +174,7 @@ export default function MessagesPage() {
       }
     }
 
-    const onOnline  = ({ userId }) => setOnlineUsers((p) => ({ ...p, [userId]: true }))
+    const onOnline = ({ userId }) => setOnlineUsers((p) => ({ ...p, [userId]: true }))
     const onOffline = ({ userId }) => setOnlineUsers((p) => ({ ...p, [userId]: false }))
 
     const onTypingStart = ({ conversationId, userId }) => {
@@ -198,7 +198,7 @@ export default function MessagesPage() {
       setMessages((prev) =>
         prev.map((m) =>
           m.messageType === 'appointment' &&
-          String(m.appointmentRef?._id || m.appointmentRef) === String(appointmentId)
+            String(m.appointmentRef?._id || m.appointmentRef) === String(appointmentId)
             ? { ...m, appointmentRef: { ...(m.appointmentRef || {}), status } }
             : m
         )
@@ -300,20 +300,17 @@ export default function MessagesPage() {
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────
-  const activeConv     = conversations.find((c) => c._id === activeConvId)
-  const otherUser      = activeConv?.participants?.find((p) => String(p._id) !== String(user?._id))
-  const isOtherOnline  = otherUser ? !!onlineUsers[String(otherUser._id)] : false
-  const isOtherTyping  = activeConvId ? (typingUsers[activeConvId]?.size || 0) > 0 : false
+  const activeConv = conversations.find((c) => c._id === activeConvId)
+  const otherUser = activeConv?.participants?.find((p) => String(p._id) !== String(user?._id))
+  const isOtherOnline = otherUser ? !!onlineUsers[String(otherUser._id)] : false
+  const isOtherTyping = activeConvId ? (typingUsers[activeConvId]?.size || 0) > 0 : false
 
   // Total unread count for page title
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div
-      className="flex overflow-hidden border-t"
-      style={{ height: 'calc(100svh - var(--navbar-h, 56px))' }}
-    >
+    <div className="flex flex-1 overflow-hidden">
       {/* ── Sidebar: Conversation List ─────────────────────────────────── */}
       <div
         className={cn(
@@ -321,8 +318,8 @@ export default function MessagesPage() {
           activeConvId && 'hidden md:flex'
         )}
       >
-        {/* Sidebar header */}
-        <div className="flex items-center justify-between border-b px-4 py-3 shrink-0">
+        {/* Sidebar header — aligns with navbar h-14 */}
+        <div className="flex h-14 items-center justify-between border-b px-4 shrink-0">
           <div className="flex items-center gap-2">
             <h1 className="font-semibold text-base">Tin nhắn</h1>
             {totalUnread > 0 && (

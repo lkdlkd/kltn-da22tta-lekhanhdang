@@ -5,18 +5,20 @@ import {
   Search, SlidersHorizontal, Map as MapIcon, X,
   ChevronLeft, ChevronRight, ArrowUpDown, RotateCcw,
   Wifi, Wind, WashingMachine, Package, ChefHat, Car,
-  ShieldCheck, Flame, Sofa, Bath, LayoutGrid, DollarSign, Maximize2, Sparkles,
+  ShieldCheck, Flame, Sofa, Bath, LayoutGrid, Sparkles, LayoutList,
+  MapPin,
 } from 'lucide-react'
 import { RoomFinderWizard } from '@/components/rooms/RoomFinderWizard'
 import { searchRoomsApi } from '@/services/roomService'
 import { RoomCard } from '@/components/rooms/RoomCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Slider } from '@/components/ui/slider'
 import { Sheet } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 /* ── Constants ─────────────────────────────────────────────────────────── */
@@ -68,44 +70,22 @@ const fmtShort = (v) => {
 const fmtVND = (v) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(v)
 
-/* ── FilterSection wrapper ────────────────────────────────────────────────── */
+/* ── Section wrapper ─────────────────────────────────────────────────────── */
 function Section({ title, children }) {
   return (
-    <div className="space-y-3">
-      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">{title}</p>
+    <div className="space-y-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
       {children}
     </div>
   )
 }
 
-/* ── PillButton ───────────────────────────────────────────────────────────── */
-function Pill({ active, onClick, children, className }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'rounded-full border px-3 py-1 text-xs font-medium transition-all duration-150 select-none',
-        active
-          ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-          : 'border-border bg-background text-foreground/70 hover:border-primary/50 hover:text-foreground',
-        className
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
-/* ── RangeSlider: local state + debounced URL commit ─────────────────────── */
-function RangeSlider({ label, icon: Icon, min, max, step, valueMin, valueMax, onCommit, formatVal, suffix = '' }) {
+/* ── RangeSlider ─────────────────────────────────────────────────────────── */
+function RangeSlider({ label, min, max, step, valueMin, valueMax, onCommit, formatVal, suffix = '' }) {
   const [local, setLocal] = useState([valueMin, valueMax])
   const debounceRef = useRef(null)
 
-  // Sync từ URL về local khi filter reset từ bên ngoài
-  useEffect(() => {
-    setLocal([valueMin, valueMax])
-  }, [valueMin, valueMax])
+  useEffect(() => { setLocal([valueMin, valueMax]) }, [valueMin, valueMax])
 
   const handleChange = (vals) => {
     setLocal(vals)
@@ -113,38 +93,22 @@ function RangeSlider({ label, icon: Icon, min, max, step, valueMin, valueMax, on
     debounceRef.current = setTimeout(() => onCommit(vals[0], vals[1]), 400)
   }
 
-  const isDefault = local[0] === min && local[1] === max
-
   return (
     <Section title={label}>
       <div className="space-y-3 px-0.5">
-        {/* Value display */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 rounded-md border bg-muted/30 px-2.5 py-1 text-xs font-semibold text-foreground min-w-0">
+          <div className="rounded-md border bg-muted/40 px-2.5 py-1 text-xs font-semibold text-foreground min-w-0">
             <span className="truncate">{formatVal ? formatVal(local[0]) : `${local[0]}${suffix}`}</span>
           </div>
-          <div className="h-px flex-1 bg-border" />
-          <div className="flex items-center gap-1.5 rounded-md border bg-muted/30 px-2.5 py-1 text-xs font-semibold text-foreground min-w-0">
+          <div className="h-px flex-1 bg-border/60" />
+          <div className="rounded-md border bg-muted/40 px-2.5 py-1 text-xs font-semibold text-foreground min-w-0">
             <span className="truncate">
-              {local[1] >= max
-                ? 'Không giới hạn'
-                : formatVal ? formatVal(local[1]) : `${local[1]}${suffix}`}
+              {local[1] >= max ? 'Không giới hạn' : formatVal ? formatVal(local[1]) : `${local[1]}${suffix}`}
             </span>
           </div>
         </div>
-
-        {/* Slider */}
-        <Slider
-          min={min}
-          max={max}
-          step={step}
-          value={local}
-          onValueChange={handleChange}
-          minStepsBetweenThumbs={1}
-          className="py-1"
-        />
-
-        {/* Min/max labels */}
+        <Slider min={min} max={max} step={step} value={local}
+          onValueChange={handleChange} minStepsBetweenThumbs={1} className="py-1" />
         <div className="flex justify-between text-[10px] text-muted-foreground">
           <span>{formatVal ? formatVal(min) : `${min}${suffix}`}</span>
           <span>{formatVal ? formatVal(max) : `${max}${suffix}`}+</span>
@@ -154,34 +118,25 @@ function RangeSlider({ label, icon: Icon, min, max, step, valueMin, valueMax, on
   )
 }
 
-/* ── FilterPanel ──────────────────────────────────────────────────────────── */
+/* ── FilterPanel ─────────────────────────────────────────────────────────── */
 function FilterPanel({ filters, onChange, onReset, activeCount, compact = false }) {
   const toggleAmenity = (val) => {
     const cur = filters.amenities
     onChange('amenities', cur.includes(val) ? cur.filter(a => a !== val) : [...cur, val])
   }
 
-  // Atomic commit — 1 setSearchParams call cho cả min+max
-  const commitPrice = useCallback((mn, mx) => {
-    onChange('_price', { min: mn, max: mx })
-  }, [onChange])
-
-  const commitArea = useCallback((mn, mx) => {
-    onChange('_area', { min: mn, max: mx })
-  }, [onChange])
+  const commitPrice = useCallback((mn, mx) => onChange('_price', { min: mn, max: mx }), [onChange])
+  const commitArea = useCallback((mn, mx) => onChange('_area', { min: mn, max: mx }), [onChange])
 
   return (
     <div className={cn('space-y-5', compact && 'space-y-4')}>
 
-      {/* Reset row */}
+      {/* Reset button */}
       {activeCount > 0 && (
-        <button
-          type="button"
-          onClick={onReset}
-          className="flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors w-full justify-center"
-        >
+        <button type="button" onClick={onReset}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
           <RotateCcw className="h-3 w-3" />
-          Xoá {activeCount} bộ lọc đang bật
+          Xoá {activeCount} bộ lọc
         </button>
       )}
 
@@ -189,9 +144,16 @@ function FilterPanel({ filters, onChange, onReset, activeCount, compact = false 
       <Section title="Loại phòng">
         <div className="flex flex-wrap gap-1.5">
           {ROOM_TYPES.map(t => (
-            <Pill key={t.value} active={filters.roomType === t.value} onClick={() => onChange('roomType', t.value)}>
+            <button key={t.value} type="button"
+              onClick={() => onChange('roomType', t.value)}
+              className={cn(
+                'rounded-lg border px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap',
+                filters.roomType === t.value
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              )}>
               {t.label}
-            </Pill>
+            </button>
           ))}
         </div>
       </Section>
@@ -199,62 +161,61 @@ function FilterPanel({ filters, onChange, onReset, activeCount, compact = false 
       <Separator />
 
       {/* Giá thuê */}
-      <RangeSlider
-        label="Giá thuê / tháng"
+      <RangeSlider label="Giá thuê / tháng"
         min={0} max={PRICE_MAX} step={100_000}
         valueMin={filters.minPrice} valueMax={filters.maxPrice}
-        formatVal={fmtShort}
-        onCommit={commitPrice}
-      />
+        formatVal={fmtShort} onCommit={commitPrice} />
 
       <Separator />
 
       {/* Diện tích */}
-      <RangeSlider
-        label="Diện tích (m²)"
+      <RangeSlider label="Diện tích (m²)"
         min={0} max={AREA_MAX} step={5}
         valueMin={filters.minArea} valueMax={filters.maxArea}
-        suffix=" m²"
-        onCommit={commitArea}
-      />
+        suffix=" m²" onCommit={commitArea} />
 
       <Separator />
 
-      {/* Trạng thái + Bán kính */}
+      {/* Trạng thái */}
       <Section title="Trạng thái">
-        <label className="flex cursor-pointer items-center gap-2.5 py-0.5 group">
-          <span className={cn(
-            'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors',
+        <button type="button"
+          onClick={() => onChange('isAvailable', filters.isAvailable === 'true' ? '' : 'true')}
+          className={cn(
+            'flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-all',
             filters.isAvailable === 'true'
-              ? 'border-primary bg-primary'
-              : 'border-border bg-background group-hover:border-primary/50'
-          )}
-            onClick={() => onChange('isAvailable', filters.isAvailable === 'true' ? '' : 'true')}
-          >
+              ? 'border-primary bg-primary/10 text-primary'
+              : 'border-border text-foreground hover:border-primary/40'
+          )}>
+          <span className={cn(
+            'flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors',
+            filters.isAvailable === 'true' ? 'border-primary bg-primary' : 'border-muted-foreground/40'
+          )}>
             {filters.isAvailable === 'true' && (
-              <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 12 12">
+              <svg className="h-2.5 w-2.5 text-primary-foreground" fill="none" viewBox="0 0 12 12">
                 <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
           </span>
-          <span
-            className="text-sm select-none cursor-pointer"
-            onClick={() => onChange('isAvailable', filters.isAvailable === 'true' ? '' : 'true')}
-          >
-            Chỉ phòng còn trống
-          </span>
-        </label>
+          <span className="text-xs font-medium">Chỉ phòng còn trống</span>
+        </button>
       </Section>
 
       <Separator />
 
-      {/* Bán kính GPS */}
+      {/* Bán kính */}
       <Section title="Bán kính từ vị trí bạn">
         <div className="flex flex-wrap gap-1.5">
           {RADIUS_OPTIONS.map(r => (
-            <Pill key={r.value} active={filters.radius === r.value} onClick={() => onChange('radius', r.value)}>
+            <button key={r.value} type="button"
+              onClick={() => onChange('radius', r.value)}
+              className={cn(
+                'rounded-lg border px-3 py-1.5 text-xs font-medium transition-all text-center',
+                filters.radius === r.value
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              )}>
               {r.label}
-            </Pill>
+            </button>
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground">Cần bật GPS để lọc theo khoảng cách</p>
@@ -264,23 +225,19 @@ function FilterPanel({ filters, onChange, onReset, activeCount, compact = false 
 
       {/* Tiện ích */}
       <Section title="Tiện ích">
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className={cn('grid gap-1.5', compact ? 'grid-cols-3' : 'grid-cols-2')}>
           {AMENITIES.map(({ value, label, icon: Icon }) => {
             const on = filters.amenities.includes(value)
             return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => toggleAmenity(value)}
+              <button key={value} type="button" onClick={() => toggleAmenity(value)}
                 className={cn(
                   'flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-medium transition-all duration-150',
                   on
-                    ? 'border-primary bg-primary/8 text-primary'
-                    : 'border-border bg-background text-foreground/70 hover:border-primary/40 hover:bg-muted/40'
-                )}
-              >
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:bg-muted/40'
+                )}>
                 <Icon className={cn('h-3.5 w-3.5 shrink-0', on ? 'text-primary' : 'text-muted-foreground')} />
-                {label}
+                <span className="leading-tight truncate">{label}</span>
               </button>
             )
           })}
@@ -333,6 +290,84 @@ function Pagination({ page, total, totalPages, onChange }) {
   )
 }
 
+/* ── SearchRoomListCard — card nằm ngang ────────────────────────────────── */
+function SearchRoomListCard({ room, highlighted }) {
+  const addr = typeof room.address === 'string'
+    ? room.address
+    : room.address?.fullAddress
+    || [room.address?.street, room.address?.ward, room.address?.district, room.address?.city].filter(Boolean).join(', ')
+
+  return (
+    <Link to={`/rooms/${room.slug}`} className="block">
+      <Card className={cn(
+        'group overflow-hidden transition-all duration-200 hover:shadow-md',
+        highlighted && 'ring-2 ring-primary shadow-md'
+      )}>
+        <CardContent className="flex gap-0 p-0">
+          {/* Thumbnail */}
+          <div className="relative w-36 sm:w-52 shrink-0 overflow-hidden bg-muted">
+            {room.images?.[0] ? (
+              <img src={room.images[0]} alt={room.title}
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center text-muted-foreground/30">
+                <span className="text-3xl">🏠</span>
+              </div>
+            )}
+            {room.isAvailable !== undefined && (
+              <div className="absolute bottom-2 left-2">
+                <Badge variant="outline" className={cn(
+                  'text-[10px] h-5 backdrop-blur-sm shadow-sm',
+                  room.isAvailable
+                    ? 'border-sky-200 bg-sky-50/90 text-sky-700'
+                    : 'border-slate-200 bg-slate-50/90 text-slate-600'
+                )}>
+                  {room.isAvailable ? 'Còn trống' : 'Đã cho thuê'}
+                </Badge>
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div className="flex flex-1 min-w-0 flex-col justify-between p-3 gap-1.5">
+            {/* Title + Address */}
+            <div className="min-w-0">
+              <h3 className="font-semibold text-sm leading-snug line-clamp-1 group-hover:text-primary transition-colors">{room.title}</h3>
+              {addr && (
+                <p className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                  <MapPin className="h-3 w-3 shrink-0" />{addr}
+                </p>
+              )}
+            </div>
+
+            {/* Stats inline */}
+            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs">
+              <span className="font-bold text-primary">{fmtVND(room.price)}/tháng</span>
+              {room.area && <span className="text-muted-foreground">{room.area} m²</span>}
+              {room.capacity && <span className="text-muted-foreground">{room.capacity} người</span>}
+              {room.roomType && (
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{room.roomType.replace(/_/g, ' ')}</Badge>
+              )}
+            </div>
+
+            {/* Amenities preview */}
+            {room.amenities?.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {room.amenities.slice(0, 4).map(a => (
+                  <span key={a} className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{a.replace(/_/g, ' ')}</span>
+                ))}
+                {room.amenities.length > 4 && (
+                  <span className="text-[10px] text-muted-foreground">+{room.amenities.length - 4}</span>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
 /* ── SearchPage ───────────────────────────────────────────────────────────── */
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -342,6 +377,7 @@ export default function SearchPage() {
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [showMap, setShowMap] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'list'
   const [userLocation, setUserLocation] = useState(null)
   const [highlightedId, setHighlightedId] = useState(null)
   const [qInput, setQInput] = useState(searchParams.get('q') || '')
@@ -415,23 +451,23 @@ export default function SearchPage() {
   useEffect(() => {
     if (!showMap) return
     const ctrl = new AbortController()
-    ;(async () => {
-      try {
-        setMapLoading(true)
-        const params = {
-          ...filters, page: 1, limit: 200,
-          amenities: filters.amenities.length ? filters.amenities : undefined,
-          minPrice: filters.minPrice > 0 ? filters.minPrice : undefined,
-          maxPrice: filters.maxPrice < PRICE_MAX ? filters.maxPrice : undefined,
-          minArea: filters.minArea > 0 ? filters.minArea : undefined,
-          maxArea: filters.maxArea < AREA_MAX ? filters.maxArea : undefined,
-        }
-        if (filters.radius && userLocation) { params.lat = userLocation.lat; params.lng = userLocation.lng }
-        const res = await searchRoomsApi(params, { signal: ctrl.signal })
-        setMapRooms(res.data?.data?.rooms || [])
-      } catch (e) { if (e.name !== 'CanceledError') setMapRooms([]) }
-      finally { setMapLoading(false) }
-    })()
+      ; (async () => {
+        try {
+          setMapLoading(true)
+          const params = {
+            ...filters, page: 1, limit: 200,
+            amenities: filters.amenities.length ? filters.amenities : undefined,
+            minPrice: filters.minPrice > 0 ? filters.minPrice : undefined,
+            maxPrice: filters.maxPrice < PRICE_MAX ? filters.maxPrice : undefined,
+            minArea: filters.minArea > 0 ? filters.minArea : undefined,
+            maxArea: filters.maxArea < AREA_MAX ? filters.maxArea : undefined,
+          }
+          if (filters.radius && userLocation) { params.lat = userLocation.lat; params.lng = userLocation.lng }
+          const res = await searchRoomsApi(params, { signal: ctrl.signal })
+          setMapRooms(res.data?.data?.rooms || [])
+        } catch (e) { if (e.name !== 'CanceledError') setMapRooms([]) }
+        finally { setMapLoading(false) }
+      })()
     return () => ctrl.abort()
   }, [showMap, searchParams, userLocation])
 
@@ -511,17 +547,13 @@ export default function SearchPage() {
 
   /* ── Render ─────────────────────────────────────────────────────────── */
   return (
-    <div
-      className="flex flex-col"
-      style={{ height: 'calc(100svh - var(--navbar-h))' }}
-    >
-      {/* ┌─ TOPBAR ──────────────────────────────────────────────────────┐ */}
-      <div className="z-20 shrink-0 border-b bg-background shadow-sm">
+    <div className="min-h-screen flex flex-col">
+      <div className="sticky top-14 z-20 shrink-0 border-b bg-background">
         {/* Search row */}
-        <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
+        <div className="mx-auto flex w-full max-w-7xl items-center gap-2 px-4 py-2.5">
 
-          {/* Mobile filter trigger */}
-          <div className="relative sm:hidden shrink-0">
+          {/* Mobile/tablet filter trigger — show below lg */}
+          <div className="relative lg:hidden shrink-0">
             <Button variant="outline" size="icon" className="h-9 w-9 relative"
               onClick={() => setMobileFilterOpen(true)}>
               <SlidersHorizontal className="h-4 w-4" />
@@ -570,13 +602,31 @@ export default function SearchPage() {
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className="h-9 gap-1.5 rounded-lg shrink-0 border-primary/40 text-primary hover:bg-primary/5 hidden sm:flex"
+            size="icon"
+            className="h-9 w-9 rounded-lg shrink-0 border-primary/40 text-primary hover:bg-primary/5 hidden sm:flex"
             onClick={() => setWizardOpen(true)}
+            title="Tìm nhanh bằng AI"
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            Tìm nhanh
+            <Sparkles className="h-4 w-4" />
           </Button>
+
+          {/* View mode toggle — sm+ */}
+          <div className="hidden sm:flex items-center rounded-lg border border-input overflow-hidden shrink-0">
+            <button type="button"
+              onClick={() => setViewMode('grid')}
+              className={cn('flex h-9 w-9 items-center justify-center transition-colors',
+                viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted')}
+              title="Dạng lưới">
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button type="button"
+              onClick={() => setViewMode('list')}
+              className={cn('flex h-9 w-9 items-center justify-center transition-colors',
+                viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted')}
+              title="Dạng danh sách">
+              <LayoutList className="h-4 w-4" />
+            </button>
+          </div>
 
           {/* Map toggle — sm+ */}
           <Button
@@ -593,7 +643,7 @@ export default function SearchPage() {
 
         {/* Active tags + result count row */}
         {(tags.length > 0 || !loading) && (
-          <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2 sm:px-4">
+          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-1.5 px-4 pb-2">
             <span className={cn('text-xs shrink-0 font-medium', loading ? 'text-muted-foreground animate-pulse' : 'text-foreground')}>
               {loading ? 'Đang tìm...' : `${pagination.total} phòng`}
             </span>
@@ -613,132 +663,148 @@ export default function SearchPage() {
           </div>
         )}
       </div>
-      {/* └──────────────────────────────────────────────────────────────┘ */}
 
-      {/* ┌─ BODY ────────────────────────────────────────────────────────┐ */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="mx-auto w-full max-w-7xl px-4 py-4 flex-1">
+        <div className="flex gap-5 items-start">
 
-        {/* Sidebar — desktop lg+ */}
-        <aside className="hidden lg:flex w-56 xl:w-60 shrink-0 flex-col border-r bg-background overflow-y-auto scrollbar-none">
-          <div className="p-4 pt-5">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="font-semibold text-sm">Bộ lọc</p>
-              {activeCount > 0 && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-                  {activeCount}
-                </span>
+          {/* Sidebar — desktop lg+ sticky */}
+          <aside className="hidden lg:block w-60 xl:w-64 shrink-0 sticky self-start top-[116px]">
+            <div className="rounded-xl border bg-card p-4 max-h-[calc(100svh-132px)] overflow-y-auto">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="font-semibold text-sm">Bộ lọc</p>
+                </div>
+                {activeCount > 0 && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">{activeCount}</span>
+                )}
+              </div>
+              <FilterPanel filters={filters} onChange={handleChange} onReset={handleReset} activeCount={activeCount} />
+            </div>
+          </aside>
+
+          {/* Main: room list + map panel */}
+          <div className="flex flex-1 min-w-0 gap-4 items-start">
+            <div className="flex-1 min-w-0">
+              {/* Toolbar — below lg only: sort + view toggle + map + AI */}
+              <div className="flex items-center gap-2 mb-3 lg:hidden">
+                <select value={filters.sort} onChange={(e) => handleChange('sort', e.target.value)} className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none">
+                  {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                {/* View toggle */}
+                <div className="flex items-center rounded-md border border-input overflow-hidden shrink-0">
+                  <button type="button" onClick={() => setViewMode('grid')}
+                    className={cn('flex h-8 w-8 items-center justify-center transition-colors',
+                      viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted')}
+                    title="Dạng lưới">
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                  </button>
+                  <button type="button" onClick={() => setViewMode('list')}
+                    className={cn('flex h-8 w-8 items-center justify-center transition-colors',
+                      viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted')}
+                    title="Dạng danh sách">
+                    <LayoutList className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-lg shrink-0" onClick={() => setShowMap(v => !v)}>
+                  <MapIcon className="h-3.5 w-3.5" />{showMap ? 'DS' : 'Bản đồ'}
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 gap-1 text-xs shrink-0 border-primary/40 text-primary hover:bg-primary/5" onClick={() => setWizardOpen(true)}>
+                  <Sparkles className="h-3.5 w-3.5" />AI
+                </Button>
+              </div>
+              {loading ? (
+                <div className={cn(
+                  'grid gap-4 mt-4',
+                  viewMode === 'list' || showMap ? 'grid-cols-1' : 'sm:grid-cols-2 xl:grid-cols-3'
+                )}>
+                  {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+                </div>
+              ) : rooms.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl border bg-muted text-4xl">🔍</div>
+                  <h2 className="font-semibold text-base">Không tìm thấy phòng nào</h2>
+                  <p className="mt-1 text-sm text-muted-foreground max-w-xs">Thử thay đổi từ khoá hoặc xoá bớt bộ lọc để xem thêm kết quả.</p>
+                  <Button variant="outline" className="gap-2 rounded-full" onClick={handleReset}><RotateCcw className="h-3.5 w-3.5" />Đặt lại bộ lọc</Button>
+                </div>
+              ) : (
+                <div className="mt-4">
+                  {viewMode === 'list' && !showMap ? (
+                    /* ── List view: card nằm ngang ── */
+                    <div className="flex flex-col gap-3">
+                      {rooms.map(room => (
+                        <div key={room._id} ref={el => { cardRefs.current[room._id] = el }}>
+                          <SearchRoomListCard room={room} highlighted={highlightedId === room._id} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* ── Grid view: card dọc ── */
+                    <div className={cn(
+                      'grid gap-4',
+                      showMap ? 'grid-cols-1 sm:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3'
+                    )}>
+                      {rooms.map(room => (
+                        <div key={room._id} ref={el => { cardRefs.current[room._id] = el }}
+                          className={cn(
+                            'rounded-xl transition-all duration-200',
+                            highlightedId === room._id && 'ring-2 ring-primary shadow-md'
+                          )}>
+                          <RoomCard room={room} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Pagination page={page} total={pagination.total} totalPages={pagination.totalPages} onChange={handlePage} />
+                </div>
               )}
             </div>
-            <FilterPanel filters={filters} onChange={handleChange} onReset={handleReset} activeCount={activeCount} />
-          </div>
-        </aside>
 
-        {/* ── Card list ── */}
-        <div className="flex-1 overflow-y-auto scrollbar-none">
-
-          {/* Mobile toolbar: sort + map */}
-          <div className="flex items-center gap-2 border-b px-3 py-2 sm:hidden bg-muted/30">
-            <select value={filters.sort} onChange={(e) => handleChange('sort', e.target.value)}
-              className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none">
-              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-lg shrink-0"
-              onClick={() => setShowMap(v => !v)}>
-              <MapIcon className="h-3.5 w-3.5" />
-              {showMap ? 'Danh sách' : 'Bản đồ'}
-            </Button>
-          </div>
-
-          {/* Grid */}
-          {loading ? (
-            <div className={cn(
-              'grid gap-3 p-3 sm:gap-4 sm:p-4 sm:grid-cols-2',
-              showMap ? 'lg:grid-cols-2 xl:grid-cols-2' : 'lg:grid-cols-3 xl:grid-cols-3'
-            )}>
-              {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
-            </div>
-          ) : rooms.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-24 text-center px-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-4xl">🔍</div>
-              <div>
-                <h2 className="font-semibold text-base">Không tìm thấy phòng nào</h2>
-                <p className="mt-1 text-sm text-muted-foreground max-w-xs">Thử thay đổi từ khoá hoặc xoá bớt bộ lọc.</p>
-              </div>
-              <Button variant="outline" className="gap-2 rounded-full" onClick={handleReset}>
-                <RotateCcw className="h-3.5 w-3.5" />Đặt lại bộ lọc
-              </Button>
-            </div>
-          ) : (
-            <div className="p-3 sm:p-4">
-              <div className={cn(
-                'grid gap-3 sm:gap-4 sm:grid-cols-2',
-                showMap ? 'lg:grid-cols-2 xl:grid-cols-2' : 'lg:grid-cols-3 xl:grid-cols-3'
-              )}>
-                {rooms.map(room => (
-                  <div
-                    key={room._id}
-                    ref={el => { cardRefs.current[room._id] = el }}
-                    className={cn('rounded-xl transition-all duration-200',
-                      highlightedId === room._id && 'ring-2 ring-primary shadow-md')}
-                  >
-                    <RoomCard room={room} />
+            {/* Map panel — desktop sticky */}
+            {showMap && (
+              <div className="hidden sm:flex w-[380px] xl:w-[440px] shrink-0 flex-col rounded-xl border overflow-hidden sticky self-start top-[116px]"
+                style={{ height: 'calc(100svh - 130px)' }}>
+                <div className="flex items-center justify-between border-b px-4 py-2.5 bg-muted/20 shrink-0">
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    {mapLoading
+                      ? <><span className="h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin inline-block" />Đang tải bản đồ…</>
+                      : <><MapIcon className="h-3.5 w-3.5 text-primary" />{roomPos.length} phòng trên bản đồ</>
+                    }
+                  </span>
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />Phòng</span>
+                    {userLocation && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-blue-500 inline-block" />Bạn</span>}
                   </div>
-                ))}
+                </div>
+                <MapContainer center={mapCenter} zoom={13} className="flex-1 w-full" key={mapCenter.join(',')}>
+                  <TileLayer attribution='&copy; OpenStreetMap' url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' />
+                  {userLocation && (
+                    <CircleMarker center={[userLocation.lat, userLocation.lng]} radius={9}
+                      pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.95, weight: 2 }}>
+                      <Popup>Vị trí của bạn</Popup>
+                    </CircleMarker>
+                  )}
+                  {roomPos.map(pos => (
+                    <CircleMarker key={pos.id} center={[pos.lat, pos.lng]}
+                      radius={highlightedId === pos.id ? 14 : 9}
+                      pathOptions={{ color: '#b91c1c', fillColor: highlightedId === pos.id ? '#dc2626' : '#f87171', fillOpacity: 0.95, weight: 2 }}
+                      eventHandlers={{ click: () => handleMarker(pos.id) }}>
+                      <Popup>
+                        <Link to={`/rooms/${pos.slug}`} className="font-semibold text-sm hover:underline block leading-snug">{pos.title}</Link>
+                        <span className="text-xs text-muted-foreground mt-0.5 block">{fmtVND(pos.price)}/tháng</span>
+                      </Popup>
+                    </CircleMarker>
+                  ))}
+                </MapContainer>
               </div>
-              <Pagination page={page} total={pagination.total} totalPages={pagination.totalPages} onChange={handlePage} />
-            </div>
-          )}
-        </div>
-
-        {/* ── Map panel — desktop right ── */}
-        {showMap && (
-          <div className="hidden sm:flex w-[400px] xl:w-[480px] shrink-0 flex-col border-l">
-            <div className="flex items-center justify-between border-b px-4 py-2.5 bg-muted/20 shrink-0">
-              <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                {mapLoading
-                  ? <><span className="h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin inline-block" /> Đang tải bản đồ…</>
-                  : <>{roomPos.length} phòng trên bản đồ</>
-                }
-              </span>
-              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block border border-red-700" />Phòng</span>
-                {userLocation && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-blue-500 inline-block border border-blue-700" />Bạn</span>}
-              </div>
-            </div>
-            <MapContainer center={mapCenter} zoom={13} className="flex-1 w-full" key={mapCenter.join(',')}>
-              <TileLayer attribution='&copy; OpenStreetMap' url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' />
-              {userLocation && (
-                <CircleMarker center={[userLocation.lat, userLocation.lng]} radius={9}
-                  pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.95, weight: 2 }}>
-                  <Popup>Vị trí của bạn</Popup>
-                </CircleMarker>
-              )}
-              {roomPos.map(pos => (
-                <CircleMarker key={pos.id} center={[pos.lat, pos.lng]}
-                  radius={highlightedId === pos.id ? 14 : 9}
-                  pathOptions={{
-                    color: '#b91c1c',
-                    fillColor: highlightedId === pos.id ? '#dc2626' : '#f87171',
-                    fillOpacity: 0.95, weight: 2,
-                  }}
-                  eventHandlers={{ click: () => handleMarker(pos.id) }}>
-                  <Popup>
-                    <Link to={`/rooms/${pos.slug}`} className="font-semibold text-sm hover:underline block leading-snug">
-                      {pos.title}
-                    </Link>
-                    <span className="text-xs text-muted-foreground mt-0.5 block">{fmtVND(pos.price)}/tháng</span>
-                  </Popup>
-                </CircleMarker>
-              ))}
-            </MapContainer>
-          </div>
-        )}
-      </div>
-      {/* └──────────────────────────────────────────────────────────────┘ */}
+            )}
+          </div>{/* end main flex */}
+        </div>{/* end flex gap-5 */}
+      </div>{/* end max-w-7xl */}
 
       {/* Mobile map fullscreen */}
       {showMap && (
-        <div className="sm:hidden fixed inset-0 z-40 flex flex-col bg-background" style={{ top: 'var(--navbar-h)' }}>
+        <div className="sm:hidden fixed inset-0 z-40 flex flex-col bg-background" style={{ top: '56px' }}>
           <div className="flex items-center justify-between border-b px-4 py-2.5 bg-background shrink-0">
             <span className="text-sm font-semibold">{roomPos.length} phòng trên bản đồ</span>
             <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setShowMap(false)}>
@@ -784,14 +850,6 @@ export default function SearchPage() {
           </Button>
         </div>
       </Sheet>
-      {/* Mobile toolbar: wizard button */}
-      <button
-        type="button"
-        onClick={() => setWizardOpen(true)}
-        className="fixed bottom-20 right-4 z-30 flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg sm:hidden"
-      >
-        <Sparkles className="h-4 w-4" /> Tìm nhanh
-      </button>
 
       {/* Wizard */}
       <RoomFinderWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
