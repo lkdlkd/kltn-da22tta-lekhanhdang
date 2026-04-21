@@ -2,6 +2,23 @@ const Joi = require('joi')
 const mongoose = require('mongoose')
 const Room = require('../models/Room')
 const sendResponse = require('../utils/apiResponse')
+const { deleteFromCloudinary } = require('../services/cloudinaryService')
+
+// Helper: detect resource type from URL (video vs image)
+const getResourceType = (url) => {
+  if (!url) return 'image'
+  const ext = url.split('?')[0].split('.').pop().toLowerCase()
+  return ['mp4', 'mov', 'avi', 'webm'].includes(ext) ? 'video' : 'image'
+}
+
+// Delete a list of Cloudinary URLs in background (fire-and-forget)
+const bulkDeleteFromCloudinary = (urls = []) => {
+  urls.forEach((url) => {
+    if (url && url.includes('cloudinary.com')) {
+      deleteFromCloudinary(url, getResourceType(url))
+    }
+  })
+}
 
 const roomSchema = Joi.object({
   title: Joi.string().trim().min(3).max(150).required(),
@@ -347,6 +364,12 @@ exports.updateRoom = async (req, res) => {
     delete updatePayload.lat
     delete updatePayload.lng
 
+    // ── Xóa ảnh / video bị bỏ khỏi Cloudinary (fire-and-forget) ────────────────
+    const removedImages = (room.images || []).filter((u) => !(value.images || []).includes(u))
+    const removedImages360 = (room.images360 || []).filter((u) => !(value.images360 || []).includes(u))
+    const removedVideos = (room.videos || []).filter((u) => !(value.videos || []).includes(u))
+    bulkDeleteFromCloudinary([...removedImages, ...removedImages360, ...removedVideos])
+
     const updatedRoom = await Room.findByIdAndUpdate(req.params.id, updatePayload, {
       new: true,
       runValidators: true,
@@ -372,6 +395,13 @@ exports.deleteRoom = async (req, res) => {
     if (!isOwnerOrAdmin(room, req.user)) {
       return sendResponse(res, 403, false, 'Bạn không có quyền xoá phòng này')
     }
+
+    // Xóa toàn bộ media trên Cloudinary (fire-and-forget)
+    bulkDeleteFromCloudinary([
+      ...(room.images || []),
+      ...(room.images360 || []),
+      ...(room.videos || []),
+    ])
 
     await Room.findByIdAndDelete(req.params.id)
     return sendResponse(res, 200, true, 'Xoá phòng thành công')

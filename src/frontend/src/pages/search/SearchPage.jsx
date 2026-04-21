@@ -70,6 +70,23 @@ const fmtShort = (v) => {
 const fmtVND = (v) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(v)
 
+/* ── Haversine distance ────────────────────────────────────────────────── */
+function calcDistance(userLoc, roomCoords) {
+  // roomCoords: [lng, lat] (GeoJSON), userLoc: {lat, lng}
+  if (!userLoc || !roomCoords || roomCoords.length < 2) return undefined
+  const [lng2, lat2] = roomCoords
+  const { lat: lat1, lng: lng1 } = userLoc
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+  const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
+  if (km < 1) return `${Math.round(km * 1000)} m`
+  return `${km.toFixed(1)} km`
+}
+
 /* ── Section wrapper ─────────────────────────────────────────────────────── */
 function Section({ title, children }) {
   return (
@@ -291,7 +308,8 @@ function Pagination({ page, total, totalPages, onChange }) {
 }
 
 /* ── SearchRoomListCard — card nằm ngang ────────────────────────────────── */
-function SearchRoomListCard({ room, highlighted }) {
+function SearchRoomListCard({ room, highlighted, distanceText }) {
+
   const addr = typeof room.address === 'string'
     ? room.address
     : room.address?.fullAddress
@@ -349,6 +367,14 @@ function SearchRoomListCard({ room, highlighted }) {
                 <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{room.roomType.replace(/_/g, ' ')}</Badge>
               )}
             </div>
+
+            {/* Distance badge */}
+            {distanceText && (
+              <div className="flex items-center gap-1.5 rounded-md bg-primary/5 px-2 py-1 text-xs font-medium text-primary w-fit">
+                <MapPin className="h-3 w-3 shrink-0" />
+                Cách bạn {distanceText}
+              </div>
+            )}
 
             {/* Amenities preview */}
             {room.amenities?.length > 0 && (
@@ -734,7 +760,11 @@ export default function SearchPage() {
                     <div className="flex flex-col gap-3">
                       {rooms.map(room => (
                         <div key={room._id} ref={el => { cardRefs.current[room._id] = el }}>
-                          <SearchRoomListCard room={room} highlighted={highlightedId === room._id} />
+                          <SearchRoomListCard
+                            room={room}
+                            highlighted={highlightedId === room._id}
+                            distanceText={calcDistance(userLocation, room.location?.coordinates)}
+                          />
                         </div>
                       ))}
                     </div>
@@ -750,7 +780,10 @@ export default function SearchPage() {
                             'rounded-xl transition-all duration-200',
                             highlightedId === room._id && 'ring-2 ring-primary shadow-md'
                           )}>
-                          <RoomCard room={room} />
+                          <RoomCard
+                            room={room}
+                            distanceText={calcDistance(userLocation, room.location?.coordinates)}
+                          />
                         </div>
                       ))}
                     </div>

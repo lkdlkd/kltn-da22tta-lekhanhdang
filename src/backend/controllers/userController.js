@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs')
 const User = require('../models/User')
-const { uploadBufferToCloudinary } = require('../services/cloudinaryService')
+const { uploadBufferToCloudinary, deleteFromCloudinary } = require('../services/cloudinaryService')
 const sendResponse = require('../utils/apiResponse')
 
 // GET /api/users/profile
@@ -27,8 +27,14 @@ exports.updateProfile = async (req, res) => {
       } catch { /* ignore parse error */ }
     }
 
-    // Upload avatar nếu có file (buffer từ multer memoryStorage)
+    // Upload avatar nếu có file mới — xóa avatar cũ trước
     if (req.file?.buffer) {
+      // Lấy user hiện tại để biết avatar cũ
+      const currentUser = await User.findById(req.user._id).select('avatar')
+      if (currentUser?.avatar && currentUser.avatar.includes('cloudinary.com')) {
+        await deleteFromCloudinary(currentUser.avatar, 'image')
+      }
+
       const result = await uploadBufferToCloudinary(req.file.buffer, 'avatars')
       updateData.avatar = result.secure_url
     }

@@ -6,6 +6,7 @@ const cors = require('cors')
 const helmet = require('helmet')
 const morgan = require('morgan')
 const connectDB = require('./utils/connectDB')
+const path = require('path');
 
 // Routes
 const authRoutes = require('./routes/authRoutes')
@@ -13,8 +14,8 @@ const roomRoutes = require('./routes/roomRoutes')
 const userRoutes = require('./routes/userRoutes')
 const favoriteRoutes = require('./routes/favoriteRoutes')
 const interactionRoutes = require('./routes/interactionRoutes')
-const reviewRoutes     = require('./routes/reviewRoutes')
-const commentRoutes    = require('./routes/commentRoutes')
+const reviewRoutes = require('./routes/reviewRoutes')
+const commentRoutes = require('./routes/commentRoutes')
 const conversationRoutes = require('./routes/conversationRoutes')
 const notificationRoutes = require('./routes/notificationRoutes')
 const adminRoutes = require('./routes/adminRoutes')
@@ -34,7 +35,13 @@ const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,http:
 
 const corsOptions = {
   origin: (origin, callback) => {
+    // Không có origin (curl, mobile, Postman, same-origin requests)
     if (!origin) return callback(null, true)
+    // Cho phép tất cả localhost (mọi port) — dev + VPS local testing
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true)
+    }
+    // Danh sách origin được cấu hình qua env
     if (allowedOrigins.includes(origin)) return callback(null, true)
     callback(new Error(`CORS: origin ${origin} not allowed`))
   },
@@ -69,7 +76,7 @@ async function emitUnreadCount(userId) {
       isRead: false,
     })
     io.to(`user:${String(userId)}`).emit('unread_count', { count })
-  } catch {}
+  } catch { }
 }
 
 app.set('emitUnreadCount', emitUnreadCount)
@@ -94,11 +101,11 @@ io.on('connection', (socket) => {
   // Chat: send message (text + optional attachments)
   socket.on('send_message', async (data) => {
     try {
-      const Message      = require('./models/Message')
+      const Message = require('./models/Message')
       const Conversation = require('./models/Conversation')
-      const User         = require('./models/User')
+      const User = require('./models/User')
       const { conversationId, senderId, content, attachments } = data
-      const hasContent     = content?.trim()
+      const hasContent = content?.trim()
       const hasAttachments = Array.isArray(attachments) && attachments.length > 0
       if (!conversationId || !senderId || (!hasContent && !hasAttachments)) return
 
@@ -152,17 +159,17 @@ io.on('connection', (socket) => {
             const landlordDoc = await User.findById(senderId).select('_respTracking')
             if (landlordDoc) {
               const t = landlordDoc._respTracking || {}
-              const newReplied  = (t.totalConvReplied  || 0) + 1
+              const newReplied = (t.totalConvReplied || 0) + 1
               const newReceived = Math.max(t.totalConvReceived || 0, newReplied)
-              const newSum      = (t.sumResponseMins || 0) + respMins
-              const newRate     = Math.round((newReplied / newReceived) * 100)
-              const newAvg      = Math.round(newSum / newReplied)
+              const newSum = (t.sumResponseMins || 0) + respMins
+              const newRate = Math.round((newReplied / newReceived) * 100)
+              const newAvg = Math.round(newSum / newReplied)
               await User.findByIdAndUpdate(senderId, {
                 responseRate: newRate,
                 avgResponseTime: newAvg,
-                '_respTracking.totalConvReplied':  newReplied,
+                '_respTracking.totalConvReplied': newReplied,
                 '_respTracking.totalConvReceived': newReceived,
-                '_respTracking.sumResponseMins':   newSum,
+                '_respTracking.sumResponseMins': newSum,
               })
             }
           }
@@ -194,7 +201,7 @@ io.on('connection', (socket) => {
   // Query online status of a list of userIds
   socket.on('check_online', ({ userIds }, callback) => {
     const result = {}
-    ;(userIds || []).forEach((uid) => { result[String(uid)] = onlineUsers.has(String(uid)) })
+      ; (userIds || []).forEach((uid) => { result[String(uid)] = onlineUsers.has(String(uid)) })
     callback?.(result)
   })
 
@@ -210,7 +217,36 @@ io.on('connection', (socket) => {
 })
 
 // ── Middleware ─────────────────────────────────────────────────────────
-app.use(helmet())
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],   // Vite inline scripts
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: [
+        "'self'",
+        'data:',
+        'blob:',
+        'https://res.cloudinary.com',             // Ảnh phòng trọ, avatar
+        'https://*.tile.openstreetmap.org',        // Leaflet map tiles
+        'https://nominatim.openstreetmap.org',     // Geocoding
+        'https://images.unsplash.com'
+      ],
+      connectSrc: [
+        "'self'",
+        'https://res.cloudinary.com',
+        'https://nominatim.openstreetmap.org',
+        'wss:',                                    // WebSocket (socket.io)
+        'ws:',
+      ],
+      mediaSrc: ["'self'", 'https://res.cloudinary.com'],  // Video phòng
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,               // Cho phép embed Leaflet tiles
+}))
 if (process.env.NODE_ENV === 'development') app.use(morgan('dev'))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
@@ -236,16 +272,51 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() })
 })
 
-// 404
-app.use('/{*path}', (req, res) => {
-  sendResponse(res, 404, false, `Route ${req.originalUrl} không tồn tại`)
-})
+// ── Serve React build (khi có VPS=1 trong env) ─────────────────────────────
+const fs = require('fs')
+const hasVPSConfig = process.env.VPS !== undefined
+const buildPath = path.join(__dirname, 'public', 'dist')
+
+if (hasVPSConfig && fs.existsSync(buildPath)) {
+  console.log('✅ VPS mode - Serving React build from', buildPath)
+
+  // Static assets (JS, CSS, images...) — cache dài
+  app.use(express.static(buildPath, {
+    maxAge: '30d',
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache')
+      }
+    },
+  }))
+
+  // Catch-all: /api/* → 404 JSON; mọi route khác → React index.html
+  app.use('/{*path}', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return sendResponse(res, 404, false, `Route ${req.originalUrl} không tồn tại`)
+    }
+    res.sendFile(path.join(buildPath, 'index.html'))
+  })
+} else {
+  if (hasVPSConfig) {
+    console.warn('⚠️ VPS is set nhưng không tìm thấy build folder:', buildPath)
+  } else {
+    console.log('ℹ️ API-only mode (không có VPS config)')
+  }
+  // API-only: 404 cho mọi route không khớp
+  app.use('/{*path}', (req, res) => {
+    sendResponse(res, 404, false, `Route ${req.originalUrl} không tồn tại`)
+  })
+}
 
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err.message)
   sendResponse(res, err.status || 500, false, err.message || 'Lỗi server nội bộ')
 })
+
 
 const PORT = process.env.PORT || 5000
 server.listen(PORT, () => {

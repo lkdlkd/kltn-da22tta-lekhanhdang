@@ -64,44 +64,77 @@ function fallbackSort(rooms, limit) {
 // ── GET /api/rooms/:id/similar?limit=6 ───────────────────────────────────────
 exports.getSimilarRooms = async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 6, 12)
+    const limit  = Math.min(Number(req.query.limit) || 6, 12)
     const target = await Room.findById(req.params.id).populate('landlord', 'name avatar')
     if (!target) return sendResponse(res, 404, false, 'Không tìm thấy phòng')
 
     const [lng, lat] = target.location.coordinates
 
-    // Hard filter: nearby approved rooms, exclude self
-    const candidates = await Room.find({
-      _id: { $ne: target._id },
-      status: 'approved',
+    // ── Bước 1: Lấy phòng cùng loại + gần vị trí (ưu tiên cao nhất) ─────────
+    // Lọc theo: roomType khớp + trong 10km + approved + available
+    const tier1 = await Room.find({
+      _id:         { $ne: target._id },
+      status:      'approved',
       isAvailable: true,
+      roomType:    target.roomType,           // cùng loại phòng
       location: {
         $near: {
-          $geometry: { type: 'Point', coordinates: [lng, lat] },
-          $maxDistance: 15_000, // 15km
+          $geometry:    { type: 'Point', coordinates: [lng, lat] },
+          $maxDistance: 10_000,               // 10km
         },
       },
     })
-      .limit(200)
+      .limit(120)
       .populate('landlord', 'name avatar')
 
-    // Attach behavior score
-    const allIds = candidates.map((r) => r._id)
-    const favMap = await buildBehaviorMap(allIds)
+    // ── Bước 2: Mở rộng nếu chưa đủ pool ────────────────────────────────────
+    // Nếu tier1 < 20 phòng → lấy thêm bất kỳ loại nào trong 15km
+    // Giúp FastAPI có đủ dữ liệu để so sánh tương đối
+    let extraCandidates = []
+    if (tier1.length < 20) {
+      const tier1Ids = tier1.map((r) => r._id)
+      extraCandidates = await Room.find({
+        _id:         { $nin: [target._id, ...tier1Ids] },
+        status:      'approved',
+        isAvailable: true,
+        location: {
+          $near: {
+            $geometry:    { type: 'Point', coordinates: [lng, lat] },
+            $maxDistance: 15_000,             // 15km
+          },
+        },
+      })
+        .limit(80)
+        .populate('landlord', 'name avatar')
+    }
+
+    const candidates = [...tier1, ...extraCandidates]
+
+    if (!candidates.length) {
+      return sendResponse(res, 200, true, 'Phòng tương tự', { rooms: [] })
+    }
+
+    // ── Bước 3: Tính behavior score (viewCount + favorites) ──────────────────
+    const allIds  = candidates.map((r) => r._id)
+    const favMap  = await buildBehaviorMap(allIds)
     const plainCandidates = attachBehavior(candidates.map(serializeRoom), favMap)
 
-    // Call FastAPI
+    // ── Bước 4: Gửi FastAPI phân tích 3 yếu tố ──────────────────────────────
+    // FastAPI sẽ tính:
+    //   - content  (giá, diện tích, loại phòng, tiện ích)  weight=0.55
+    //   - location (khoảng cách Haversine)                  weight=0.25
+    //   - quality  (behavior = view + favorites)            weight=0.20
     let rooms
     try {
       rooms = await callAI('similar', {
-        target: serializeRoom(target),
+        target:     serializeRoom(target),
         candidates: plainCandidates,
-        center: { lat, lng },
-        radius_km: 10,
+        center:     { lat, lng },
+        radius_km:  10,
         limit,
       })
     } catch {
-      // Fallback: sort by viewCount
+      // Fallback: sort by viewCount khi FastAPI không khả dụng
       rooms = fallbackSort(plainCandidates, limit)
     }
 
@@ -110,6 +143,7 @@ exports.getSimilarRooms = async (req, res) => {
     return sendResponse(res, 500, false, err.message)
   }
 }
+
 
 // ── POST /api/rooms/wizard-recommend ─────────────────────────────────────────
 exports.wizardRecommend = async (req, res) => {

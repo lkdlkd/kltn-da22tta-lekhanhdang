@@ -1,8 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
 
-const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'
 
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace('/api', '')
+  }
+  // Giữ nguyên port (quan trọng khi test local: localhost:5000)
+  const { protocol, hostname, port } = window.location
+  return port ? `${protocol}//${hostname}:${port}` : `${protocol}//${hostname}`
+}
+const BACKEND_URL = getApiBaseUrl()
 let socketInstance = null
 
 export function getSocket() {

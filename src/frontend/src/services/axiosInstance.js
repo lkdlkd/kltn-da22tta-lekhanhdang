@@ -1,7 +1,17 @@
 import axios from 'axios'
 
+
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace('/api', '')
+  }
+  // Giữ nguyên port (quan trọng khi test local: localhost:5000)
+  const { protocol, hostname, port } = window.location
+  return port ? `${protocol}//${hostname}:${port}` : `${protocol}//${hostname}`
+}
+
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  baseURL: getApiBaseUrl(),
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

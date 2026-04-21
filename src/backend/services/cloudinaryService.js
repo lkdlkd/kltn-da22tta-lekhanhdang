@@ -23,7 +23,35 @@ const uploadBufferToCloudinary = (buffer, folder = 'rooms', resourceType = 'imag
   })
 }
 
+/**
+ * Xóa file trên Cloudinary dựa vào URL.
+ * URL format: https://res.cloudinary.com/<cloud>/image/upload/v<ver>/<folder>/<id>.<ext>
+ * @param {string} url  - Cloudinary secure_url
+ * @param {'image'|'video'|'raw'} resourceType
+ */
+const deleteFromCloudinary = async (url, resourceType = 'image') => {
+  if (!url || !url.includes('cloudinary.com')) return
+
+  try {
+    // Lấy phần sau "/upload/"
+    const parts = url.split('/upload/')
+    if (parts.length < 2) return
+
+    let path = parts[1]
+    // Bỏ version prefix: v1234567890/
+    path = path.replace(/^v\d+\//, '')
+    // Bỏ extension (.jpg, .mp4, ...)
+    const publicId = path.replace(/\.[^/.]+$/, '')
+
+    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType })
+  } catch (err) {
+    // Không để lỗi Cloudinary block luồng chính
+    console.warn('[Cloudinary] deleteFromCloudinary error:', err?.message || err)
+  }
+}
+
 module.exports = {
   cloudinary,
   uploadBufferToCloudinary,
+  deleteFromCloudinary,
 }

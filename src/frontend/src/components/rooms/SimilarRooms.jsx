@@ -1,26 +1,28 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { MapPin, Ruler } from 'lucide-react'
 import { getSimilarRoomsApi } from '@/services/recommendService'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
+import { RoomCard } from '@/components/rooms/RoomCard'
 
-// ── Type badge ────────────────────────────────────────────────────────────────
-const TYPE_LABELS = {
-  phòng_trọ:       { label: 'Phòng trọ',     cls: 'bg-blue-100 text-blue-700' },
-  chung_cư_mini:   { label: 'Chung cư mini',  cls: 'bg-purple-100 text-purple-700' },
-  nhà_nguyên_căn:  { label: 'Nhà nguyên căn', cls: 'bg-green-100 text-green-700' },
-  ký_túc_xá:       { label: 'Ký túc xá',      cls: 'bg-orange-100 text-orange-700' },
+// ── Haversine distance (km) ───────────────────────────────────────────────────
+// targetLocation: [lng, lat] — GeoJSON format từ MongoDB
+// roomCoords:    [lng, lat]  — GeoJSON format
+function haversineKm([lng1, lat1], [lng2, lat2]) {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
 }
 
-function RoomTypeBadge({ type }) {
-  const config = TYPE_LABELS[type] || { label: type, cls: 'bg-muted text-muted-foreground' }
-  return (
-    <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold', config.cls)}>
-      {config.label}
-    </span>
-  )
+// Format khoảng cách hiển thị trên card
+function formatDistance(km) {
+  if (km == null || isNaN(km)) return ''
+  if (km < 1) return `${Math.round(km * 1000)} m`
+  return `${km.toFixed(1)} km`
 }
 
 // ── Skeleton loader ───────────────────────────────────────────────────────────
@@ -29,11 +31,11 @@ function SimilarSkeleton({ count = 6 }) {
     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="rounded-2xl border overflow-hidden">
-          <Skeleton className="h-44 w-full" />
+          <Skeleton className="aspect-[16/10] w-full" />
           <div className="p-3 space-y-2">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
-            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-8 w-full rounded-lg" />
           </div>
         </div>
       ))}
@@ -41,63 +43,14 @@ function SimilarSkeleton({ count = 6 }) {
   )
 }
 
-// ── Room card ─────────────────────────────────────────────────────────────────
-function SimilarRoomCard({ room }) {
-  const image = room.images?.[0]
-  const price = new Intl.NumberFormat('vi-VN').format(room.price)
-
-  return (
-    <Link
-      to={`/rooms/${room.slug}`}
-      className="group flex flex-col rounded-2xl border bg-card overflow-hidden
-                 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-    >
-      {/* Image */}
-      <div className="relative h-44 overflow-hidden bg-muted shrink-0">
-        {image ? (
-          <img
-            src={image}
-            alt={room.title}
-            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground/30 text-4xl">
-            🏠
-          </div>
-        )}
-        <div className="absolute top-2 left-2">
-          <RoomTypeBadge type={room.roomType} />
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="flex flex-col gap-1.5 p-3 flex-1">
-        <p className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
-          {room.title}
-        </p>
-
-        <p className="text-base font-bold text-primary">
-          {price}
-          <span className="text-xs font-normal text-muted-foreground ml-1">đ/tháng</span>
-        </p>
-
-        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-auto">
-          <span className="flex items-center gap-1">
-            <Ruler className="h-3 w-3" />
-            {room.area} m²
-          </span>
-          <span className="flex items-center gap-1 truncate min-w-0">
-            <MapPin className="h-3 w-3 shrink-0" />
-            <span className="truncate">{room.address}</span>
-          </span>
-        </div>
-      </div>
-    </Link>
-  )
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
-export function SimilarRooms({ roomId, limit = 6 }) {
+/**
+ * @param {string}        roomId          – ID phòng đang xem
+ * @param {number}        limit           – Số phòng gợi ý tối đa
+ * @param {[number,number]|undefined} targetLocation – [lng, lat] GeoJSON của phòng đang xem
+ *                                          Dùng để tính khoảng cách hiển thị trên card
+ */
+export function SimilarRooms({ roomId, limit = 6, targetLocation }) {
   const [rooms, setRooms]     = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -118,22 +71,38 @@ export function SimilarRooms({ roomId, limit = 6 }) {
 
   return (
     <section className="mt-10">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold">Phòng tương tự</h2>
-        {!loading && rooms.length > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {rooms.length} phòng gợi ý ở gần đây
-          </span>
-        )}
+      {/* Header */}
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold">Phòng tương tự</h2>
+          {!loading && rooms.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {rooms.length} phòng gợi ý gần khu vực này
+            </p>
+          )}
+        </div>
       </div>
 
       {loading ? (
         <SimilarSkeleton count={limit} />
       ) : (
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {rooms.map((room) => (
-            <SimilarRoomCard key={room._id} room={room} />
-          ))}
+          {rooms.map((room) => {
+            // Tính khoảng cách từ phòng gốc đến phòng gợi ý
+            const coords = room.location?.coordinates  // [lng, lat]
+            const distanceText =
+              targetLocation && coords
+                ? formatDistance(haversineKm(targetLocation, coords))
+                : undefined
+
+            return (
+              <RoomCard
+                key={room._id}
+                room={room}
+                distanceText={distanceText}
+              />
+            )
+          })}
         </div>
       )}
     </section>

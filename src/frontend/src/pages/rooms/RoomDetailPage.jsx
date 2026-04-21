@@ -13,7 +13,7 @@ import {
   House, Send, ImageIcon, Expand, Play,
   GitCompare, Heart, Flag,
 } from 'lucide-react'
-import { getRoomBySlugApi, getRoomDistanceApi } from '@/services/roomService'
+import { getRoomBySlugApi } from '@/services/roomService'
 import { createInteractionApi } from '@/services/interactionService'
 import { getFavoriteIdsApi } from '@/services/favoriteService'
 import { createConversationApi } from '@/services/chatService'
@@ -216,15 +216,25 @@ export default function RoomDetailPage() {
   }, [slug])
 
   useEffect(() => {
-    if (!room) return
+    if (!room?.location?.coordinates) return
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        setUserLocation(loc)
-        try {
-          const r = await getRoomDistanceApi(room._id, loc.lat, loc.lng)
-          setDistanceText(r.data?.data?.distance_text || '')
-        } catch { setDistanceText('') }
+      (pos) => {
+        const userLat = pos.coords.latitude
+        const userLng = pos.coords.longitude
+        setUserLocation({ lat: userLat, lng: userLng })
+
+        // Tính khoảng cách Haversine client-side — không cần gọi backend
+        const [roomLng, roomLat] = room.location.coordinates
+        const R = 6371
+        const dLat = ((roomLat - userLat) * Math.PI) / 180
+        const dLng = ((roomLng - userLng) * Math.PI) / 180
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos((userLat * Math.PI) / 180) *
+          Math.cos((roomLat * Math.PI) / 180) *
+          Math.sin(dLng / 2) ** 2
+        const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
+        setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
       },
       () => { }
     )
@@ -855,7 +865,11 @@ export default function RoomDetailPage() {
       {/* ── SIMILAR ROOMS ──────────────────────────────────────────────── */}
       {room?._id && (
         <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-12">
-          <SimilarRooms roomId={room._id} limit={6} />
+          <SimilarRooms
+            roomId={room._id}
+            limit={6}
+            targetLocation={room.location?.coordinates}
+          />
         </div>
       )}
 
