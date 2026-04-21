@@ -216,7 +216,13 @@ exports.resetPassword = async (req, res) => {
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback'
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
+
+// Tự detect frontend URL: trong VPS mode dùng cùng host với request
+const getFrontendUrl = (req) => {
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL
+  if (process.env.VPS) return `${req.protocol}://${req.get('host')}`
+  return 'http://localhost:5173'
+}
 
 // GET /api/auth/google?role=student|landlord — redirect to Google consent
 exports.googleRedirect = (req, res) => {
@@ -237,7 +243,7 @@ exports.googleRedirect = (req, res) => {
 exports.googleCallback = async (req, res) => {
   try {
     const { code, state } = req.query
-    if (!code) return res.redirect(`${FRONTEND_URL}/login?error=google_failed`)
+    if (!code) return res.redirect(`${getFrontendUrl(req)}/login?error=google_failed`)
 
     // Role from state (set during redirect); fallback to student
     const chosenRole = ['student', 'landlord'].includes(state) ? state : 'student'
@@ -255,7 +261,7 @@ exports.googleCallback = async (req, res) => {
       }),
     })
     const tokenData = await tokenRes.json()
-    if (!tokenData.id_token) return res.redirect(`${FRONTEND_URL}/login?error=google_failed`)
+    if (!tokenData.id_token) return res.redirect(`${getFrontendUrl(req)}/login?error=google_failed`)
 
     // Verify id_token and extract user info
     const { OAuth2Client } = require('google-auth-library')
@@ -291,9 +297,9 @@ exports.googleCallback = async (req, res) => {
     // Existing Google users: role is NOT changed (they chose once at sign-up)
 
     const token = signToken(user._id)
-    res.redirect(`${FRONTEND_URL}/login?token=${token}`)
+    res.redirect(`${getFrontendUrl(req)}/login?token=${token}`)
   } catch (error) {
     console.error('Google callback error:', error)
-    res.redirect(`${FRONTEND_URL}/login?error=google_failed`)
+    res.redirect(`${getFrontendUrl(req)}/login?error=google_failed`)
   }
 }

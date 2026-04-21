@@ -27,6 +27,7 @@ const sendResponse = require('./utils/apiResponse')
 
 const app = express()
 const server = http.createServer(app)
+app.set('trust proxy', 1) // Render/Nginx reverse proxy → req.protocol = 'https'
 
 // ── CORS ──────────────────────────────────────────────────────────────
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5174')
