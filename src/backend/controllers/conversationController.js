@@ -81,16 +81,20 @@ exports.getMessages = async (req, res) => {
       return sendResponse(res, 403, false, 'Không có quyền truy cập')
 
     const page = Math.max(Number(req.query.page) || 1, 1)
-    const limit = Math.min(Number(req.query.limit) || 30, 100)
-    const messages = await Message.find({ conversation: req.params.id })
-      .populate('sender', 'name avatar')
-      .populate({
-        path: 'appointmentRef',
-        populate: { path: 'room', select: 'title slug images' },
-      })
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
+    const limit = Math.min(Number(req.query.limit) || 20, 100)
+
+    const [messages, total] = await Promise.all([
+      Message.find({ conversation: req.params.id })
+        .populate('sender', 'name avatar')
+        .populate({
+          path: 'appointmentRef',
+          populate: { path: 'room', select: 'title slug images' },
+        })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Message.countDocuments({ conversation: req.params.id }),
+    ])
 
     // Đánh dấu đã đọc các tin nhắn của người kia
     await Message.updateMany(
@@ -104,6 +108,9 @@ exports.getMessages = async (req, res) => {
 
     return sendResponse(res, 200, true, 'Lịch sử tin nhắn', {
       messages: messages.reverse(), // trả về theo thứ tự thời gian
+      hasMore: page * limit < total,
+      total,
+      page,
     })
   } catch (error) {
     return sendResponse(res, 500, false, error.message)

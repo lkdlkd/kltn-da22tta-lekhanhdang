@@ -37,6 +37,9 @@ export default function MessagesPage() {
   const [input, setInput] = useState('')
   const [loadingConvs, setLoadingConvs] = useState(true)
   const [loadingMsgs, setLoadingMsgs] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [msgPage, setMsgPage] = useState(1)
   const [mediaFiles, setMediaFiles] = useState([])
   const [uploading, setUploading] = useState(false)
   const [bookingOpen, setBookingOpen] = useState(false)
@@ -49,6 +52,14 @@ export default function MessagesPage() {
   const [typingUsers, setTypingUsers] = useState({})
 
   const bottomRef = useRef(null)
+  const msgContainerRef = useRef(null)   // scroll container
+  const topSentinelRef = useRef(null)    // IO sentinel ở đầu messages
+  const isLoadingMoreRef = useRef(false) // tránh scroll xuống khi prepend
+  // Refs để tránh stale closure trong scroll handler
+  const hasMoreRef = useRef(false)
+  const loadingMoreRef = useRef(false)
+  const msgPageRef = useRef(1)
+  const activeConvIdRef = useRef(null)
   const typingTimerRef = useRef(null)
   const isTypingRef = useRef(false)
 
@@ -117,19 +128,92 @@ export default function MessagesPage() {
     }
   }, [user?._id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Load messages (dùng cho cả lần đầu và load more) ───────────────────────
+  const loadMessages = useCallback(async (convId, page, prepend = false) => {
+    if (page === 1) setLoadingMsgs(true)
+    else setLoadingMore(true)
+
+    isLoadingMoreRef.current = prepend // chẹn auto-scroll khi prepend
+    try {
+      const res = await getMessagesApi(convId, page, 10)
+      const newMsgs = res.data?.data?.messages || []
+      const more = res.data?.data?.hasMore ?? false
+      setHasMore(more)
+
+      if (prepend) {
+        const container = msgContainerRef.current
+        const prevScrollHeight = container?.scrollHeight || 0
+        setMessages((prev) => [...newMsgs, ...prev])
+        // Khôi phục scroll position sau khi prepend
+        requestAnimationFrame(() => {
+          if (container) {
+            container.scrollTop = container.scrollHeight - prevScrollHeight
+          }
+          isLoadingMoreRef.current = false
+        })
+      } else {
+        setMessages(newMsgs)
+        // Scroll xuống dưới sau khi load lần đầu
+        requestAnimationFrame(() => {
+          bottomRef.current?.scrollIntoView({ behavior: 'instant' })
+          isLoadingMoreRef.current = false
+        })
+      }
+    } catch {
+      isLoadingMoreRef.current = false
+    } finally {
+      if (page === 1) setLoadingMsgs(false)
+      else setLoadingMore(false)
+    }
+  }, [])
+
   // ── Load messages when conv changes ─────────────────────────────────────
   useEffect(() => {
     if (!activeConvId || activeConvId === '__pending__') {
       setMessages([])
+      setMsgPage(1)
+      setHasMore(false)
       return
     }
-    setLoadingMsgs(true)
+    setMsgPage(1)
+    setHasMore(false)
     socket.emit('join_conversation', activeConvId)
-    getMessagesApi(activeConvId)
-      .then((res) => setMessages(res.data?.data?.messages || []))
-      .catch(() => { })
-      .finally(() => setLoadingMsgs(false))
+    loadMessages(activeConvId, 1, false)
   }, [activeConvId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── IntersectionObserver: load more khi sentinel ở đầu hiện ra ─────────────
+  // Dùng IO thay scroll listener vì hoạt động cả khi content chưa đủ cao để scroll
+  useEffect(() => {
+    const sentinel = topSentinelRef.current
+    const container = msgContainerRef.current
+    if (!sentinel || !container) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          hasMoreRef.current &&
+          !loadingMoreRef.current &&
+          !isLoadingMoreRef.current
+        ) {
+          const nextPage = msgPageRef.current + 1
+          msgPageRef.current = nextPage // cập nhật ngay, tránh double-load
+          setMsgPage(nextPage)
+          loadMessages(activeConvIdRef.current, nextPage, true)
+        }
+      },
+      { root: container, threshold: 0.1 }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [activeConvId, hasMore, loadMessages])
+
+  // Sync refs với state (để IO callback không bị stale)
+  useEffect(() => { hasMoreRef.current = hasMore }, [hasMore])
+  useEffect(() => { loadingMoreRef.current = loadingMore }, [loadingMore])
+  useEffect(() => { msgPageRef.current = msgPage }, [msgPage])
+  useEffect(() => { activeConvIdRef.current = activeConvId }, [activeConvId])
 
   // ── Socket listeners ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -222,9 +306,11 @@ export default function MessagesPage() {
     }
   }, [activeConvId, socket, user?._id, markRead])
 
-  // ── Auto scroll ──────────────────────────────────────────────────────────
+  // ── Auto scroll xuống khi có tin nhắn mới (không scroll khi đang load more) ──
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!isLoadingMoreRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages])
 
   // ── Typing emit ──────────────────────────────────────────────────────────
@@ -364,8 +450,19 @@ export default function MessagesPage() {
               onOpenBooking={() => setBookingOpen(true)}
             />
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
+            {/* Messages — scroll container cố định, input luôn ở dưới */}
+            <div
+              ref={msgContainerRef}
+              className="flex-1 overflow-y-auto min-h-0 px-4 py-4 space-y-1.5"
+            >
+              {/* Sentinel vô hình ở đầu — IO fire khi visible để load more */}
+              <div ref={topSentinelRef} className="h-1" />
+              {/* Spinner khi đang load thêm */}
+              {loadingMore && (
+                <div className="flex justify-center py-2">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                </div>
+              )}
               {loadingMsgs ? (
                 <div className="space-y-3 pt-2">
                   {[0, 1, 2, 3].map((i) => (
@@ -381,12 +478,10 @@ export default function MessagesPage() {
               ) : (
                 messages.map((msg, idx) => {
                   const isMine = String(msg.sender?._id || msg.sender) === String(user?._id)
-                  // Show avatar only when sender changes
                   const prevMsg = messages[idx - 1]
                   const showAvatar =
                     !isMine &&
                     (idx === 0 || String(prevMsg?.sender?._id || prevMsg?.sender) !== String(msg.sender?._id || msg.sender))
-                  // Consider message read if it's not the last message
                   const isRead = isMine && idx < messages.length - 1
 
                   return (

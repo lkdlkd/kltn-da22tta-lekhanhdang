@@ -232,7 +232,8 @@ app.use(helmet({
         'https://res.cloudinary.com',             // Ảnh phòng trọ, avatar
         'https://*.tile.openstreetmap.org',        // Leaflet map tiles
         'https://nominatim.openstreetmap.org',     // Geocoding
-        'https://images.unsplash.com'
+        'https://images.unsplash.com',
+        'https://lh3.googleusercontent.com',
       ],
       connectSrc: [
         "'self'",

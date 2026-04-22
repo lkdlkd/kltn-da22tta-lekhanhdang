@@ -10,7 +10,7 @@ const getApiBaseUrl = () => {
   return `${protocol}//${hostname}`;
 };
 
-const BACKEND_URL = `${getApiBaseUrl()}/api`;
+const BACKEND_URL = getApiBaseUrl();
 let socketInstance = null
 
 export function getSocket() {
