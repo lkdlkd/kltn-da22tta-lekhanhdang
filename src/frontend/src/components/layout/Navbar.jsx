@@ -8,8 +8,8 @@ import { getSocket } from '@/hooks/useSocket'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {
-  Home, MessageCircle, User, LogOut, Shield, Building2,
-  Moon, Sun, Heart, Calendar, Search, Menu, X, Bell,
+  Home, MessageCircle, User, LogOut, Shield, Building2, LayoutDashboard,
+  Moon, Sun, Heart, Calendar, Search, Menu, X, ChevronDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown'
@@ -21,12 +21,74 @@ const NAV_LINKS = [
   { to: '/recommend', label: 'Gợi ý AI' },
 ]
 
+const LANDLORD_MENU = [
+  { to: '/landlord/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/landlord/rooms',     icon: Building2,       label: 'Quản lý phòng' },
+  { to: '/landlord/appointments', icon: Calendar,     label: 'Lịch hẹn' },
+  { to: '/messages',           icon: MessageCircle,   label: 'Tin nhắn' },
+]
+
 const ROLE_LABEL = {
-  student: { text: 'Sinh viên', cls: 'text-blue-600 dark:text-blue-400' },
-  landlord: { text: 'Chủ trọ', cls: 'text-emerald-600 dark:text-emerald-400' },
-  admin: { text: 'Admin', cls: 'text-orange-600 dark:text-orange-400' },
+  student:  { text: 'Sinh viên', cls: 'text-blue-600 dark:text-blue-400' },
+  landlord: { text: 'Chủ trọ',   cls: 'text-emerald-600 dark:text-emerald-400' },
+  admin:    { text: 'Admin',     cls: 'text-orange-600 dark:text-orange-400' },
 }
 
+// ── Landlord dropdown (desktop) ────────────────────────────────────────────────
+function LandlordDropdown({ isActive }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const location = useLocation()
+
+  useEffect(() => { setOpen(false) }, [location.pathname])
+  useEffect(() => {
+    if (!open) return
+    const h = (e) => { if (!ref.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  const isLandlordRoute = location.pathname.startsWith('/landlord')
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={cn(
+          'flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap',
+          isLandlordRoute
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+        )}
+      >
+        <LayoutDashboard className="h-3.5 w-3.5" />
+        Quản lý
+        <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1.5 w-48 rounded-xl border bg-background shadow-lg z-50 p-1">
+          {LANDLORD_MENU.map(({ to, icon: Icon, label }) => (
+            <Link
+              key={to} to={to}
+              className={cn(
+                'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
+                location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-foreground hover:bg-muted'
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 export function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -42,7 +104,7 @@ export function Navbar() {
   useEffect(() => setMounted(true), [])
   useEffect(() => setOpen(false), [location.pathname])
 
-  // Real-time unread count via WebSocket
+  // Real-time unread count
   useEffect(() => {
     if (!isAuth) return
     const socket = getSocket()
@@ -51,12 +113,12 @@ export function Navbar() {
     return () => socket.off('unread_count', onUnread)
   }, [isAuth])
 
-  // Close menu on outside click
+  // Close mobile menu on outside click
   useEffect(() => {
     if (!open) return
-    const handle = (e) => { if (!menuRef.current?.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
+    const h = (e) => { if (!menuRef.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
   }, [open])
 
   const handleLogout = async () => {
@@ -71,18 +133,14 @@ export function Navbar() {
     exact ? location.pathname === to : location.pathname.startsWith(to)
 
   return (
-    <header
-      className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-md"
-      ref={menuRef}
-    >
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-md" ref={menuRef}>
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4">
 
-        {/* ── Logo ─────────────────────────────────────────────────── */}
+        {/* Logo */}
         <Link to="/" className="flex shrink-0 items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
             <Home className="h-3.5 w-3.5" />
           </div>
-          {/* Text: sm+ */}
           <div className="hidden sm:flex flex-col leading-none">
             <span className="text-sm font-bold tracking-tight text-foreground">
               PhòngTrọ <span className="text-primary">VL</span>
@@ -91,7 +149,7 @@ export function Navbar() {
           </div>
         </Link>
 
-        {/* ── Desktop nav links — md+ ───────────────────────────────── */}
+        {/* Desktop nav links */}
         <nav className="hidden md:flex items-center gap-0.5 ml-2">
           {NAV_LINKS.map(({ to, label, exact }) => (
             <Link
@@ -106,14 +164,31 @@ export function Navbar() {
               {label}
             </Link>
           ))}
+
+          {/* Landlord dropdown */}
+          {isAuth && user?.role === 'landlord' && (
+            <LandlordDropdown />
+          )}
+          {/* Admin shortcut inline */}
+          {isAuth && user?.role === 'admin' && (
+            <Link
+              to="/admin"
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                isActive('/admin')
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <Shield className="h-3.5 w-3.5" /> Admin
+            </Link>
+          )}
         </nav>
 
-        {/* ── Spacer ───────────────────────────────────────────────── */}
+        {/* Spacer */}
         <div className="flex-1" />
 
-        {/* ── Right actions ─────────────────────────────────────────── */}
-
-        {/* Theme toggle — always */}
+        {/* Right actions */}
         {mounted && (
           <Button
             variant="ghost" size="icon"
@@ -127,7 +202,7 @@ export function Navbar() {
 
         {isAuth ? (
           <>
-            {/* Messages — always visible (badge shows unread) */}
+            {/* Messages */}
             <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full shrink-0" asChild>
               <Link to="/messages" title="Tin nhắn">
                 <MessageCircle className="h-4 w-4" />
@@ -139,20 +214,8 @@ export function Navbar() {
               </Link>
             </Button>
 
-            {/* Notifications — always visible */}
+            {/* Notifications */}
             <NotificationDropdown />
-
-            {/* Role shortcut — md+ only */}
-            {user?.role === 'admin' && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hidden md:flex shrink-0" asChild>
-                <Link to="/admin" title="Admin"><Shield className="h-4 w-4" /></Link>
-              </Button>
-            )}
-            {user?.role === 'landlord' && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hidden md:flex shrink-0" asChild>
-                <Link to="/landlord/rooms" title="Quản lý phòng"><Building2 className="h-4 w-4" /></Link>
-              </Button>
-            )}
 
             {/* Favorites — md+ */}
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hidden md:flex shrink-0" asChild>
@@ -187,32 +250,30 @@ export function Navbar() {
           </>
         ) : (
           <>
-            {/* Đăng nhập — compact on mobile, full on md+ */}
             <Button variant="ghost" size="sm" asChild className="h-8 rounded-full text-sm shrink-0 hidden md:flex">
               <Link to="/login">Đăng nhập</Link>
             </Button>
             <Button size="sm" asChild className="h-8 rounded-full text-sm shadow-sm shrink-0 hidden md:flex">
               <Link to="/register">Đăng ký</Link>
             </Button>
-            {/* Mobile: just a login icon */}
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full shrink-0 md:hidden" asChild>
               <Link to="/login" title="Đăng nhập"><User className="h-4 w-4" /></Link>
             </Button>
           </>
         )}
 
-        {/* Hamburger — below md */}
+        {/* Hamburger */}
         <Button
           variant="ghost" size="icon"
           className="h-8 w-8 rounded-full md:hidden shrink-0 ml-0.5"
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => setOpen(o => !o)}
           aria-label={open ? 'Đóng menu' : 'Mở menu'}
         >
           {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </Button>
       </div>
 
-      {/* ── Mobile / tablet drawer — below md ─────────────────────────── */}
+      {/* Mobile drawer */}
       {open && (
         <div className="md:hidden border-t bg-background shadow-sm">
           <div className="px-4 py-3 space-y-1">
@@ -255,12 +316,13 @@ export function Navbar() {
                 {/* Quick links grid */}
                 <div className="grid grid-cols-3 gap-1.5 pt-1">
                   {[
-                    { to: '/favorites', icon: Heart, label: 'Yêu thích' },
-                    { to: '/appointments', icon: Calendar, label: 'Lịch hẹn' },
-                    { to: '/search', icon: Search, label: 'Tìm phòng' },
+                    { to: '/favorites',    icon: Heart,           label: 'Yêu thích' },
+                    { to: '/appointments', icon: Calendar,        label: 'Lịch hẹn' },
+                    { to: '/search',       icon: Search,          label: 'Tìm phòng' },
                     ...(user?.role === 'landlord' ? [
-                      { to: '/landlord/rooms', icon: Building2, label: 'Phòng trọ' },
-                      { to: '/landlord/appointments', icon: Calendar, label: 'QL Lịch hẹn' },
+                      { to: '/landlord/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
+                      { to: '/landlord/rooms',         icon: Building2,       label: 'Phòng trọ' },
+                      { to: '/landlord/appointments',  icon: Calendar,        label: 'QL Lịch hẹn' },
                     ] : []),
                     ...(user?.role === 'admin' ? [
                       { to: '/admin', icon: Shield, label: 'Admin' },

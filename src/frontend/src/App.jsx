@@ -15,8 +15,9 @@ import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 import VerifyEmailPage from '@/pages/auth/VerifyEmailPage'
 
 // Room Pages
-import LandlordRoomsPage from '@/pages/landlord/LandlordRoomsPage'
 import LandlordProfilePage from '@/pages/landlord/LandlordProfilePage'
+import LandlordRoomsPage from '@/pages/landlord/LandlordRoomsPage'
+import LandlordDashboardPage from '@/pages/landlord/LandlordDashboardPage'
 import RoomFormPage from '@/pages/landlord/RoomFormPage'
 import RoomDetailPage from '@/pages/rooms/RoomDetailPage'
 import SearchPage from '@/pages/search/SearchPage'
@@ -59,12 +60,18 @@ const NotFoundPage = () => (
  */
 function AppLayout({ children, fullHeight = false, noFooter = false }) {
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div
+      className={
+        fullHeight
+          ? 'flex h-svh flex-col overflow-hidden bg-background'
+          : 'flex min-h-svh flex-col bg-background'
+      }
+    >
       <Navbar />
       <main
         className={[
           'flex-1',
-          fullHeight ? 'flex flex-col overflow-hidden' : '',
+          fullHeight ? 'flex flex-col overflow-hidden min-h-0' : '',
         ].join(' ')}
       >
         {children}
@@ -107,6 +114,7 @@ export default function App() {
 
           {/* Landlord routes */}
           <Route element={<RoleRoute roles={['landlord', 'admin']} />}>
+            <Route path="/landlord/dashboard" element={<AppLayout><LandlordDashboardPage /></AppLayout>} />
             <Route path="/landlord/rooms" element={<AppLayout><LandlordRoomsPage /></AppLayout>} />
             <Route path="/landlord/rooms/create" element={<AppLayout><RoomFormPage /></AppLayout>} />
             <Route path="/landlord/rooms/:id/edit" element={<AppLayout><RoomFormPage /></AppLayout>} />

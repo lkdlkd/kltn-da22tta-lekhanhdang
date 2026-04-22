@@ -50,12 +50,12 @@ export default function MessagesPage() {
 
   const [onlineUsers, setOnlineUsers] = useState({})
   const [typingUsers, setTypingUsers] = useState({})
+  const [hasUnreadNew, setHasUnreadNew] = useState(false) // badge khi cuộn lên xa
 
   const bottomRef = useRef(null)
-  const msgContainerRef = useRef(null)   // scroll container
-  const topSentinelRef = useRef(null)    // IO sentinel ở đầu messages
-  const isLoadingMoreRef = useRef(false) // tránh scroll xuống khi prepend
-  // Refs để tránh stale closure trong scroll handler
+  const msgContainerRef = useRef(null)
+  const isLoadingMoreRef = useRef(false)
+  const isNearBottomRef = useRef(true)   // user đang ở gần đáy hay không
   const hasMoreRef = useRef(false)
   const loadingMoreRef = useRef(false)
   const msgPageRef = useRef(1)
@@ -181,35 +181,30 @@ export default function MessagesPage() {
     loadMessages(activeConvId, 1, false)
   }, [activeConvId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── IntersectionObserver: load more khi sentinel ở đầu hiện ra ─────────────
-  // Dùng IO thay scroll listener vì hoạt động cả khi content chưa đủ cao để scroll
+  // ── Scroll listener: theo dõi vị trí có gần đáy không ─────────────────────
   useEffect(() => {
-    const sentinel = topSentinelRef.current
     const container = msgContainerRef.current
-    if (!sentinel || !container) return
+    if (!container || !activeConvId) return
+    const onScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container
+      const nearBottom = scrollHeight - scrollTop - clientHeight < 80
+      isNearBottomRef.current = nearBottom
+      if (nearBottom) setHasUnreadNew(false) // xóa badge khi cuộn xuống
+    }
+    container.addEventListener('scroll', onScroll, { passive: true })
+    return () => container.removeEventListener('scroll', onScroll)
+  }, [activeConvId])
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (
-          entries[0].isIntersecting &&
-          hasMoreRef.current &&
-          !loadingMoreRef.current &&
-          !isLoadingMoreRef.current
-        ) {
-          const nextPage = msgPageRef.current + 1
-          msgPageRef.current = nextPage // cập nhật ngay, tránh double-load
-          setMsgPage(nextPage)
-          loadMessages(activeConvIdRef.current, nextPage, true)
-        }
-      },
-      { root: container, threshold: 0.1 }
-    )
+  // ── Load more thủ công khi bấm nút ─────────────────────────────────────────
+  const handleLoadMore = useCallback(() => {
+    if (loadingMoreRef.current || isLoadingMoreRef.current || !hasMoreRef.current) return
+    const nextPage = msgPageRef.current + 1
+    msgPageRef.current = nextPage
+    setMsgPage(nextPage)
+    loadMessages(activeConvIdRef.current, nextPage, true)
+  }, [loadMessages])
 
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [activeConvId, hasMore, loadMessages])
-
-  // Sync refs với state (để IO callback không bị stale)
+  // Sync refs với state
   useEffect(() => { hasMoreRef.current = hasMore }, [hasMore])
   useEffect(() => { loadingMoreRef.current = loadingMore }, [loadingMore])
   useEffect(() => { msgPageRef.current = msgPage }, [msgPage])
@@ -306,10 +301,18 @@ export default function MessagesPage() {
     }
   }, [activeConvId, socket, user?._id, markRead])
 
-  // ── Auto scroll xuống khi có tin nhắn mới (không scroll khi đang load more) ──
+  // ── Auto scroll: chỉ scroll xuống khi user đang ở gần đáy ──────────────────
+  const prevMsgCountRef = useRef(0)
   useEffect(() => {
-    if (!isLoadingMoreRef.current) {
+    const isNewMsg = messages.length > prevMsgCountRef.current && !isLoadingMoreRef.current
+    prevMsgCountRef.current = messages.length
+    if (!isNewMsg) return
+    if (isNearBottomRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      setHasUnreadNew(false)
+    } else {
+      // User đang cuộn lên xem tin cũ → chỉ hiện badge
+      setHasUnreadNew(true)
     }
   }, [messages])
 
@@ -383,6 +386,10 @@ export default function MessagesPage() {
     clearTimeout(typingTimerRef.current)
     isTypingRef.current = false
     setInput('')
+    // Sau khi gửi, luôn scroll xuống đáy
+    isNearBottomRef.current = true
+    setHasUnreadNew(false)
+    requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }))
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────
@@ -450,13 +457,23 @@ export default function MessagesPage() {
               onOpenBooking={() => setBookingOpen(true)}
             />
 
-            {/* Messages — scroll container cố định, input luôn ở dưới */}
-            <div
-              ref={msgContainerRef}
-              className="flex-1 overflow-y-auto min-h-0 px-4 py-4 space-y-1.5"
-            >
-              {/* Sentinel vô hình ở đầu — IO fire khi visible để load more */}
-              <div ref={topSentinelRef} className="h-1" />
+            {/* Messages — relative wrapper để floating badge */}
+            <div className="relative flex-1 min-h-0 flex flex-col">
+              <div
+                ref={msgContainerRef}
+                className="flex-1 overflow-y-auto min-h-0 px-4 py-4 space-y-1.5"
+              >
+                {/* Nút tải tin cũ hơn — chỉ hiện khi còn tin chưa load */}
+                {hasMore && !loadingMore && !loadingMsgs && (
+                  <div className="flex justify-center py-2">
+                    <button
+                      onClick={handleLoadMore}
+                      className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+                    >
+                      ↑ Tải tin cũ hơn
+                    </button>
+                  </div>
+                )}
               {/* Spinner khi đang load thêm */}
               {loadingMore && (
                 <div className="flex justify-center py-2">
@@ -496,8 +513,23 @@ export default function MessagesPage() {
                 })
               )}
 
-              {isOtherTyping && <TypingBubble name={otherUser?.name} />}
-              <div ref={bottomRef} />
+                {isOtherTyping && <TypingBubble name={otherUser?.name} />}
+                <div ref={bottomRef} />
+              </div>
+
+              {/* Floating badge: tin nhắn mới khi đang cuộn lên */}
+              {hasUnreadNew && (
+                <button
+                  onClick={() => {
+                    isNearBottomRef.current = true
+                    setHasUnreadNew(false)
+                    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+                  }}
+                  className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground shadow-lg hover:bg-primary/90 transition-all animate-bounce"
+                >
+                  ↓ Tin nhắn mới
+                </button>
+              )}
             </div>
 
             {/* Input */}
