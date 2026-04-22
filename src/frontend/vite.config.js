@@ -22,4 +22,8 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    outDir: '../backend/public/dist', // Build trực tiếp vào public/dist của backend
+    emptyOutDir: true,                // Xóa file cũ trước khi build
+  },
 })
