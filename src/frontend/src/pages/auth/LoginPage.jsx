@@ -16,13 +16,12 @@ import { cn } from '@/lib/utils'
 
 const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace('/api', '')
+    return import.meta.env.VITE_API_URL
   }
-  // Giữ nguyên port (quan trọng khi test local: localhost:5000)
-  const { protocol, hostname, port } = window.location
-  return port ? `${protocol}//${hostname}:${port}` : `${protocol}//${hostname}`
-}
-const BACKEND_URL = getApiBaseUrl()
+  const { protocol, hostname } = window.location;
+  return `${protocol}//${hostname}`;
+};
+const BACKEND_URL = `${getApiBaseUrl()}/api`;
 
 const schema = yup.object({
   email: yup.string().email('Email không hợp lệ').required('Vui lòng nhập email'),
@@ -176,7 +175,7 @@ export default function LoginPage() {
   /* Role selected → redirect to backend OAuth with role in query */
   const handleRoleSelect = (role) => {
     setShowRolePicker(false)
-    window.location.href = `${BACKEND_URL}/api/auth/google?role=${role}`
+    window.location.href = `${BACKEND_URL}/auth/google?role=${role}`
   }
 
   if (googleLoading) {

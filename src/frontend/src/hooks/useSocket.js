@@ -4,13 +4,13 @@ import { io } from 'socket.io-client'
 
 const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace('/api', '')
+    return import.meta.env.VITE_API_URL
   }
-  // Giữ nguyên port (quan trọng khi test local: localhost:5000)
-  const { protocol, hostname, port } = window.location
-  return port ? `${protocol}//${hostname}:${port}` : `${protocol}//${hostname}`
-}
-const BACKEND_URL = getApiBaseUrl()
+  const { protocol, hostname } = window.location;
+  return `${protocol}//${hostname}`;
+};
+
+const BACKEND_URL = `${getApiBaseUrl()}/api`;
 let socketInstance = null
 
 export function getSocket() {
