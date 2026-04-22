@@ -9,7 +9,7 @@ const getApiBaseUrl = () => {
   return `${protocol}//${hostname}`;
 };
 const axiosInstance = axios.create({
-  baseURL: `${getApiBaseUrl()}/api`,
+  baseURL: getApiBaseUrl(),
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
