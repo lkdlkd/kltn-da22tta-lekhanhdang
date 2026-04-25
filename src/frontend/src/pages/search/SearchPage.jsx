@@ -224,7 +224,10 @@ function FilterPanel({ filters, onChange, onReset, activeCount, compact = false 
         <div className="flex flex-wrap gap-1.5">
           {RADIUS_OPTIONS.map(r => (
             <button key={r.value} type="button"
-              onClick={() => onChange('radius', r.value)}
+              onClick={() => {
+                handleChange('radius', r.value)
+                if (r.value && !userLocation) requestGps()
+              }}
               className={cn(
                 'rounded-lg border px-3 py-1.5 text-xs font-medium transition-all text-center',
                 filters.radius === r.value
@@ -441,13 +444,20 @@ export default function SearchPage() {
     return n
   }, [filters])
 
-  /* GPS */
-  useEffect(() => {
-    navigator.geolocation?.getCurrentPosition(
-      (p) => setUserLocation({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => { }
+  /* GPS — chỉ request khi user chọn radius filter (user gesture cho Safari) */
+  const requestGps = (onSuccess) => {
+    if (!navigator.geolocation) { toast.error('Trình duyệt không hỗ trợ GPS'); return }
+    navigator.geolocation.getCurrentPosition(
+      (p) => { setUserLocation({ lat: p.coords.latitude, lng: p.coords.longitude }); onSuccess?.() },
+      (err) => {
+        if (err.code === 1) toast.error('Quyền vị trí bị tắt. Vui lòng cấp quyền trong cài đặt trình duyệt.')
+        else if (err.code === 2) toast.error('Không xác định được vị trí. Kiểm tra GPS thiết bị.')
+        else if (err.code === 3) toast.error('Hết thời gian lấy vị trí. Vui lòng thử lại.')
+        handleChange('radius', '') // xóa radius nếu không lấy được GPS
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     )
-  }, [])
+  }
 
   /* Fetch */
   useEffect(() => {

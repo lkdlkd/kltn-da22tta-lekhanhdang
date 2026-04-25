@@ -12,7 +12,7 @@ import { RoomCard } from '@/components/rooms/RoomCard'
 import { cn } from '@/lib/utils'
 import { selectIsAuthenticated } from '@/features/auth/authSlice'
 import { forYouApi, wizardRecommendApi } from '@/services/recommendService'
-import { getApproxLocation } from '@/utils/getApproxLocation'
+
 
 // ── Distance helpers ──────────────────────────────────────────────────────────
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -64,7 +64,7 @@ export default function RecommendPage() {
   const isAuth = useSelector(selectIsAuthenticated)
 
   const [loading, setLoading]   = useState(true)
-  const [rooms, setRooms]       = useState(null)
+  const [rooms, setRooms]       = useState([])
   const [locating, setLocating] = useState(false)
   const [displayGps, setDisplayGps] = useState(null) // GPS ẩn — chỉ hiển thị khoảng cách
   const [apiGps, setApiGps]     = useState(null)     // GPS gửi API — chỉ khi user bấm "Gần tôi"
@@ -77,7 +77,7 @@ export default function RecommendPage() {
       const payload = { limit: 12, ...(location ?? {}) }
       const res = await forYouApi(payload)
       setRooms(res.data?.data?.rooms || [])
-    } catch { toast.error('Không tải được gợi ý') }
+    } catch { toast.error('Không tải được gợi ý'); setRooms([]) }
     finally { setLoading(false) }
   }, [])
 
@@ -87,7 +87,7 @@ export default function RecommendPage() {
       const payload = { limit: 12, ...(location ?? {}) }
       const res = await wizardRecommendApi(payload)
       setRooms(res.data?.data?.rooms || [])
-    } catch { toast.error('Không tải được gợi ý') }
+    } catch { toast.error('Không tải được gợi ý'); setRooms([]) }
     finally { setLoading(false) }
   }, [])
 
@@ -97,11 +97,6 @@ export default function RecommendPage() {
   }, [isAuth, fetchForYou, fetchTopForGuest])
 
   useEffect(() => { doFetch(null) }, [isAuth]) // eslint-disable-line
-
-  // Lấy vị trí ngầm khi mount — chỉ để hiển thị khoảng cách, không gửi API
-  useEffect(() => {
-    getApproxLocation().then(coords => { if (coords) setDisplayGps(coords) })
-  }, [])
 
   // ── GPS ───────────────────────────────────────────────────────────────────
 
@@ -122,9 +117,9 @@ export default function RecommendPage() {
 
     const onError = (err) => {
       setLocating(false)
-      if (err.code === 1) toast.error('Bạn đã từ chối GPS. Vui lòng cấp quyền vị trí trong cài đặt trình duyệt.')
-      else if (err.code === 2) toast.error('Không xác định được vị trí. Kiểm tra kết nối mạng hoặc GPS thiết bị.')
-      else if (err.code === 3) toast.error('Hết thời gian lấy GPS. Vui lòng thử lại.')
+      if (err.code === 1) toast.error('Bạn đã từ chối GPS.')
+      else if (err.code === 2) toast.error('Không xác định được vị trí.')
+      else if (err.code === 3) toast.error('Hết thời gian lấy GPS.')
       else toast.error('Không lấy được vị trí.')
     }
 
@@ -135,10 +130,9 @@ export default function RecommendPage() {
 
   const clearGPS = () => {
     setApiGps(null)
-    doFetch(null) // fetch lại không có vị trí; displayGps vẫn giữ để hiển thị khoảng cách
+    doFetch(null)
   }
 
-  // ── Labels ────────────────────────────────────────────────────────────────
   const sourceLabel = apiGps
     ? '📍 Phòng gần bạn nhất'
     : isAuth
@@ -147,23 +141,30 @@ export default function RecommendPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background">
-      <div className="container mx-auto max-w-5xl px-4 py-10 space-y-8">
+      <div className="container mx-auto max-w-5xl px-4 py-8 space-y-6">
 
-        {/* ── Hero ── */}
-        <div className="space-y-2">
+        {/* ── Header ── */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white shadow-md">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white shadow-md shrink-0">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight leading-none">Gợi ý cho bạn</h1>
+              <h1 className="text-xl font-extrabold tracking-tight leading-tight sm:text-2xl">Gợi ý cho bạn</h1>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {isAuth
-                  ? 'Cá nhân hóa theo thói quen xem phòng của bạn'
-                  : 'Đăng nhập để nhận gợi ý riêng theo sở thích của bạn'}
+                {isAuth ? 'Cá nhân hóa theo thói quen xem phòng của bạn' : 'Đăng nhập để nhận gợi ý riêng theo sở thích'}
               </p>
             </div>
           </div>
+          <Button
+            size="sm" variant="outline"
+            className="gap-1.5 h-8 shrink-0"
+            onClick={() => doFetch(apiGps)}
+            disabled={loading}
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+            Làm mới
+          </Button>
         </div>
 
         {/* ── Guest CTA ── */}
@@ -181,10 +182,10 @@ export default function RecommendPage() {
 
         {/* ── Location bar ── */}
         <div className={cn(
-          'rounded-2xl border px-5 py-3.5 flex flex-wrap items-center gap-3 transition-colors',
-          apiGps ? 'bg-primary/5 border-primary/30' : 'bg-card'
+          'rounded-xl border px-4 py-3 flex flex-wrap items-center gap-3 transition-colors',
+          apiGps ? 'bg-primary/5 border-primary/25' : 'bg-card'
         )}>
-          <span className="text-sm font-semibold text-muted-foreground shrink-0">📍 Vị trí</span>
+          <span className="text-sm font-medium text-muted-foreground shrink-0">📍 Vị trí</span>
 
           {!apiGps ? (
             <Button
@@ -199,11 +200,10 @@ export default function RecommendPage() {
             </Button>
           ) : (
             <>
-              <Badge className="gap-1.5 bg-primary/15 text-primary border-primary/25 font-medium py-1">
-                <MapPin className="h-3 w-3" />
-                Đã bật vị trí — ưu tiên phòng gần nhất
+              <Badge variant="secondary" className="gap-1.5 font-medium">
+                <MapPin className="h-3 w-3 text-primary" />
+                Đã bật — ưu tiên phòng gần nhất
               </Badge>
-
               <Button
                 size="sm" variant="ghost"
                 className="gap-1.5 h-7 text-xs text-muted-foreground ml-auto hover:text-destructive"
@@ -215,44 +215,31 @@ export default function RecommendPage() {
           )}
         </div>
 
-        {/* ── Results header ── */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <p className="text-sm font-semibold truncate">{sourceLabel}</p>
-            {rooms !== null && !loading && (
-              <Badge variant="outline" className="text-xs shrink-0 tabular-nums">
-                {rooms.length} phòng
-              </Badge>
-            )}
-          </div>
-          <Button
-            size="sm" variant="outline"
-            className="gap-1.5 h-8 shrink-0"
-            onClick={() => doFetch(apiGps)}
-            disabled={loading}
-          >
-            <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
-            Làm mới
-          </Button>
+        {/* ── Results label ── */}
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold">{sourceLabel}</p>
+          {!loading && rooms.length > 0 && (
+            <Badge variant="outline" className="text-xs tabular-nums">{rooms.length} phòng</Badge>
+          )}
         </div>
 
         {/* ── Results ── */}
         {loading ? (
           <SkeletonGrid />
-        ) : rooms?.length === 0 ? (
-          <div className="flex flex-col items-center gap-4 py-20 rounded-2xl border border-dashed">
-            <span className="text-5xl">{gps ? '📍' : '🏘️'}</span>
+        ) : rooms.length === 0 ? (
+          <div className="flex flex-col items-center gap-4 py-20 rounded-xl border border-dashed">
+            <span className="text-5xl">{apiGps ? '📍' : '🏠'}</span>
             <div className="text-center space-y-1 max-w-xs">
               <p className="text-sm font-medium">
-                {gps ? 'Không có phòng nào gần bạn' : 'Chưa có gợi ý phù hợp'}
+                {apiGps ? 'Không có phòng nào gần bạn' : 'Chưa có gợi ý phù hợp'}
               </p>
               <p className="text-xs text-muted-foreground">
-                {gps
+                {apiGps
                   ? 'Thử tắt GPS để xem gợi ý theo sở thích của bạn.'
                   : 'Hãy xem thêm một vài phòng để hệ thống học sở thích của bạn.'}
               </p>
             </div>
-            {gps && (
+            {apiGps && (
               <Button size="sm" onClick={clearGPS} variant="outline" className="gap-1.5">
                 <RotateCcw className="h-3.5 w-3.5" /> Tắt GPS
               </Button>

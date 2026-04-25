@@ -552,16 +552,32 @@ export default function RoomDetailPage() {
           {gpsBlocked && (
             <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs dark:border-amber-800 dark:bg-amber-950/40">
               <span className="text-base leading-none mt-0.5">📍</span>
-              <div>
-                <p className="font-semibold text-amber-800 dark:text-amber-300">Quyền vị trí bị tắt</p>
-                <p className="text-amber-700 dark:text-amber-400 mt-0.5">
-                  Để xem khoảng cách và chỉ đường, hãy bật vị trí trong trình duyệt:
+              <div className="space-y-1.5">
+                <p className="font-semibold text-amber-800 dark:text-amber-300">Quyền vị trí bị tắt hoặc đã từng từ chối</p>
+                <p className="text-amber-700 dark:text-amber-400">
+                  Safari ghi nhớ việc từ chối theo từng trang web và sẽ không hỏi lại. Để đặt lại:
                 </p>
-                <ul className="mt-1 space-y-0.5 text-amber-700 dark:text-amber-400 list-disc list-inside">
-                  <li><span className="font-medium">Chrome:</span> Thanh địa chỉ → 🔒 → Vị trí → Cho phép</li>
-                  <li><span className="font-medium">Safari iOS:</span> Cài đặt → Safari → Vị trí → Hỏi</li>
-                  <li><span className="font-medium">Firefox:</span> Thanh địa chỉ → 🛡️ → Vị trí → Cho phép</li>
+                <ul className="space-y-1 text-amber-700 dark:text-amber-400 list-disc list-inside">
+                  <li>
+                    <span className="font-medium">Safari iOS — Cách 1:</span>{' '}
+                    Cài đặt → Quyền riêng tư → Dịch vụ vị trí → Safari Websites → <span className="font-medium">Hỏi hoặc Cho phép</span>
+                  </li>
+                  <li>
+                    <span className="font-medium">Safari iOS — Cách 2:</span>{' '}
+                    Cài đặt → Safari → Nâng cao → Dữ liệu trang web → Xóa dữ liệu của trang này
+                  </li>
+                  <li>
+                    <span className="font-medium">Chrome Android/iOS:</span>{' '}
+                    Thanh địa chỉ → 🔒 → Vị trí → Cho phép
+                  </li>
+                  <li>
+                    <span className="font-medium">Firefox:</span>{' '}
+                    Thanh địa chỉ → 🗡️ → Vị trí → Cho phép
+                  </li>
                 </ul>
+                <p className="text-amber-600 dark:text-amber-500 italic">
+                  Sau khi cấp quyền, nhấn nút “Bật vị trí” ở trên để xem khoảng cách.
+                </p>
               </div>
             </div>
           )}

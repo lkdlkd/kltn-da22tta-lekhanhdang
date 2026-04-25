@@ -270,11 +270,14 @@ export default function RoomFormPage() {
           setLocationLoading(false)
         }
       },
-      (error) => {
-        toast.error(error.message || 'Không thể lấy vị trí hiện tại')
+      (err) => {
+        if (err.code === 1) toast.error('Quyền vị trí bị tắt. Cấp quyền trong cài đặt trình duyệt.')
+        else if (err.code === 2) toast.error('Không xác định được vị trí. Kiểm tra GPS thiết bị.')
+        else if (err.code === 3) toast.error('Hết thời gian lấy GPS. Vui lòng thử lại.')
+        else toast.error('Không thể lấy vị trí hiện tại')
         setLocationLoading(false)
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     )
   }
 
