@@ -217,26 +217,37 @@ export default function RoomDetailPage() {
 
   useEffect(() => {
     if (!room?.location?.coordinates) return
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const userLat = pos.coords.latitude
-        const userLng = pos.coords.longitude
-        setUserLocation({ lat: userLat, lng: userLng })
+    const [roomLng, roomLat] = room.location.coordinates
 
-        // Tính khoảng cách Haversine client-side — không cần gọi backend
-        const [roomLng, roomLat] = room.location.coordinates
-        const R = 6371
-        const dLat = ((roomLat - userLat) * Math.PI) / 180
-        const dLng = ((roomLng - userLng) * Math.PI) / 180
-        const a =
-          Math.sin(dLat / 2) ** 2 +
-          Math.cos((userLat * Math.PI) / 180) *
-          Math.cos((roomLat * Math.PI) / 180) *
-          Math.sin(dLng / 2) ** 2
-        const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
-        setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
-      },
-      () => { }
+    const calcDistance = (userLat, userLng) => {
+      setUserLocation({ lat: userLat, lng: userLng })
+      const R = 6371
+      const dLat = ((roomLat - userLat) * Math.PI) / 180
+      const dLng = ((roomLng - userLng) * Math.PI) / 180
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((userLat * Math.PI) / 180) *
+        Math.cos((roomLat * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2
+      const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
+      setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
+    }
+
+    // Tầng 2: IP geolocation — luôn hoạt động, không cần permission
+    const tryIpGeo = async () => {
+      try {
+        const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) })
+        const data = await res.json()
+        if (data?.latitude && data?.longitude) calcDistance(data.latitude, data.longitude)
+      } catch { /* im lặng */ }
+    }
+
+    // Tầng 1: Browser GPS
+    if (!navigator.geolocation) { tryIpGeo(); return }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => calcDistance(pos.coords.latitude, pos.coords.longitude),
+      () => tryIpGeo(), // thất bại → fallback IP geo
+      { enableHighAccuracy: false, timeout: 4000, maximumAge: 120000 }
     )
   }, [room])
 

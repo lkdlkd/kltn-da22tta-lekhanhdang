@@ -98,12 +98,27 @@ export default function RecommendPage() {
   useEffect(() => { doFetch(null) }, [isAuth]) // eslint-disable-line
 
   // Lấy GPS ngầm khi mount — chỉ để hiển thị khoảng cách, không gửi API
+  // Ưu tiên: Browser GPS → fallback IP Geolocation (luôn hoạt động, không cần permission)
   useEffect(() => {
-    if (!navigator.geolocation) return
+    const setFromIp = async () => {
+      try {
+        const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) })
+        const data = await res.json()
+        if (data?.latitude && data?.longitude) {
+          setDisplayGps({ lat: data.latitude, lng: data.longitude })
+        }
+      } catch { /* im lặng */ }
+    }
+
+    if (!navigator.geolocation) {
+      setFromIp()
+      return
+    }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => setDisplayGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {},  // im lặng nếu từ chối, không show toast
-      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      () => setFromIp(), // GPS thất bại → dùng IP geo
+      { enableHighAccuracy: false, timeout: 4000, maximumAge: 120000 }
     )
   }, [])
 
