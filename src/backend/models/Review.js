@@ -20,31 +20,5 @@ reviewSchema.index({ room: 1, user: 1 }, { unique: true })
 reviewSchema.index({ room: 1, status: 1 })
 reviewSchema.index({ status: 1, createdAt: -1 })
 
-// Tự động cập nhật averageRating + reviewCount trên Room sau save/delete
-async function recalcRoomRating(roomId) {
-  const Room = mongoose.model('Room')
-  const stats = await mongoose.model('Review').aggregate([
-    { $match: { room: roomId, status: 'approved' } },
-    { $group: { _id: '$room', avg: { $avg: '$rating' }, count: { $sum: 1 } } },
-  ])
-  if (stats.length > 0) {
-    await Room.findByIdAndUpdate(roomId, {
-      averageRating: Math.round(stats[0].avg * 10) / 10,
-      reviewCount: stats[0].count,
-    })
-  } else {
-    await Room.findByIdAndUpdate(roomId, { averageRating: 0, reviewCount: 0 })
-  }
-}
-
-reviewSchema.post('save', async function () {
-  await recalcRoomRating(this.room)
-})
-reviewSchema.post('findOneAndUpdate', async function (doc) {
-  if (doc) await recalcRoomRating(doc.room)
-})
-reviewSchema.post('findOneAndDelete', async function (doc) {
-  if (doc) await recalcRoomRating(doc.room)
-})
 
 module.exports = mongoose.model('Review', reviewSchema)

@@ -174,8 +174,6 @@ async function seed() {
       status: 'approved',
       isAvailable: Math.random() > 0.15,
       viewCount: randInt(0, 500),
-      averageRating: Number((Math.random() * 2 + 3).toFixed(1)),
-      reviewCount: randInt(0, 30),
     })
     createdRooms.push(room)
     process.stdout.write(`\r  Đã tạo: ${createdRooms.length}/25`)

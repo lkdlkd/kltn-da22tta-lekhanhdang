@@ -78,15 +78,12 @@ exports.getPublicProfile = async (req, res) => {
     if (user.role !== 'landlord') return sendResponse(res, 403, false, 'Người dùng này không phải chủ trọ')
 
     const rooms = await Room.find({ landlord: user._id, status: 'approved' })
-      .select('title slug images price area isAvailable address averageRating reviewCount viewCount roomType createdAt')
+      .select('title slug images price area isAvailable address viewCount roomType createdAt')
       .sort({ createdAt: -1 })
 
     const stats = {
       totalRooms: rooms.length,
       availableRooms: rooms.filter((r) => r.isAvailable).length,
-      avgRating: rooms.length
-        ? (rooms.reduce((s, r) => s + (r.averageRating || 0), 0) / rooms.length).toFixed(1)
-        : 0,
     }
 
     return sendResponse(res, 200, true, 'Hồ sơ chủ trọ', { landlord: user, rooms, stats })

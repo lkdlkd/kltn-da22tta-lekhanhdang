@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { RefreshCw, MapPin, Ruler, Star, ArrowRight } from 'lucide-react'
+import { RefreshCw, MapPin, Ruler, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
@@ -53,12 +53,6 @@ function RoomCard({ room }) {
           <span className="flex items-center gap-1">
             <Ruler className="h-3 w-3" />{room.area} m²
           </span>
-          {room.averageRating > 0 && (
-            <span className="flex items-center gap-1">
-              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-              {room.averageRating.toFixed(1)}
-            </span>
-          )}
           <span className="flex items-center gap-1 min-w-0 truncate">
             <MapPin className="h-3 w-3 shrink-0" />
             <span className="truncate">{room.address}</span>

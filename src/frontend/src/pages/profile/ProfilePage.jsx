@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { getProfileApi, updateProfileApi, changePasswordApi } from '@/services/userService'
 import { getFavoritesApi } from '@/services/favoriteService'
+import { getRecentlyViewedApi } from '@/services/interactionService'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -102,8 +103,10 @@ export default function ProfilePage() {
   const [pwForm, setPwForm]     = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [showPw, setShowPw]     = useState({ current: false, new: false, confirm: false })
   const [saving, setSaving]     = useState(false)
-  const [favRooms, setFavRooms] = useState([])
-  const [loadingFavs, setLoadingFavs] = useState(false)
+  const [favRooms, setFavRooms]         = useState([])
+  const [loadingFavs, setLoadingFavs]   = useState(false)
+  const [recentRooms, setRecentRooms]   = useState([])
+  const [loadingRecent, setLoadingRecent] = useState(false)
 
   useEffect(() => {
     getProfileApi()
@@ -130,6 +133,15 @@ export default function ProfilePage() {
       .then(res => setFavRooms(res.data?.data?.rooms || []))
       .catch(() => toast.error('Không thể tải yêu thích'))
       .finally(() => setLoadingFavs(false))
+  }
+
+  const loadRecent = () => {
+    if (loadingRecent) return
+    setLoadingRecent(true)
+    getRecentlyViewedApi(10)
+      .then(res => setRecentRooms(res.data?.data?.rooms || []))
+      .catch(() => toast.error('Không thể tải lịch sử xem'))
+      .finally(() => setLoadingRecent(false))
   }
 
   const handleSave = async (e) => {
@@ -222,13 +234,19 @@ export default function ProfilePage() {
       </div>
 
       {/* ── Tabs ──────────────────────────────────────────────────────── */}
-      <Tabs defaultValue="info" onValueChange={v => v === 'favorites' && loadFavs()}>
-        <TabsList className="w-full grid grid-cols-3 h-10 rounded-xl">
+      <Tabs defaultValue="info" onValueChange={v => {
+        if (v === 'favorites') loadFavs()
+        if (v === 'recent') loadRecent()
+      }}>
+        <TabsList className="w-full grid grid-cols-4 h-10 rounded-xl">
           <TabsTrigger value="info" className="rounded-lg gap-1.5 text-xs sm:text-sm">
             <User className="h-3.5 w-3.5" />Thông tin
           </TabsTrigger>
           <TabsTrigger value="favorites" className="rounded-lg gap-1.5 text-xs sm:text-sm">
             <Heart className="h-3.5 w-3.5" />Yêu thích
+          </TabsTrigger>
+          <TabsTrigger value="recent" className="rounded-lg gap-1.5 text-xs sm:text-sm">
+            <Eye className="h-3.5 w-3.5" />Đã xem
           </TabsTrigger>
           <TabsTrigger value="security" className="rounded-lg gap-1.5 text-xs sm:text-sm">
             <KeyRound className="h-3.5 w-3.5" />Bảo mật
@@ -341,6 +359,37 @@ export default function ProfilePage() {
               <p className="text-sm text-muted-foreground">{favRooms.length} phòng đã lưu</p>
               <div className="grid gap-4 sm:grid-cols-2">
                 {favRooms.map(room => <RoomCard key={room._id} room={room} />)}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── Tab Đã xem ── */}
+        <TabsContent value="recent" className="mt-4">
+          {loadingRecent ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[0,1,2,3].map(i => <Skeleton key={i} className="h-64 rounded-xl" />)}
+            </div>
+          ) : recentRooms.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 py-16 text-center rounded-2xl border bg-card">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                <Eye className="h-8 w-8 text-muted-foreground/40" />
+              </div>
+              <div>
+                <p className="font-semibold">Chưa xem phòng nào</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                  Khi bạn xem chi tiết phòng, chúng sẽ hiển thị ở đây
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="rounded-full gap-1.5">
+                <Link to="/search"><Eye className="h-3.5 w-3.5" />Tìm phòng ngay</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">{recentRooms.length} phòng đã xem gần đây</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {recentRooms.map(room => <RoomCard key={room._id} room={room} />)}
               </div>
             </div>
           )}

@@ -22,6 +22,7 @@ import RoomFormPage from '@/pages/landlord/RoomFormPage'
 import RoomDetailPage from '@/pages/rooms/RoomDetailPage'
 import SearchPage from '@/pages/search/SearchPage'
 import HomePage from '@/pages/home/HomePage'
+import RecommendPage from '@/pages/recommend/RecommendPage'
 
 // Phase 5-9 Pages
 import FavoritesPage from '@/pages/favorites/FavoritesPage'
@@ -98,6 +99,7 @@ export default function App() {
           {/* Public routes */}
           <Route path="/" element={<AppLayout><HomePage /></AppLayout>} />
           <Route path="/search" element={<AppLayout><SearchPage /></AppLayout>} />
+          <Route path="/recommend" element={<AppLayout><RecommendPage /></AppLayout>} />
           <Route path="/rooms/:slug" element={<AppLayout><RoomDetailPage /></AppLayout>} />
           <Route path="/landlord/:username" element={<AppLayout><LandlordProfilePage /></AppLayout>} />
 

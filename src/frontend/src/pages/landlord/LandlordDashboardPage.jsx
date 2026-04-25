@@ -34,11 +34,11 @@ function formatCurrency(v) {
 // ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, sub, color, to }) {
   const palette = {
-    blue:   'bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-blue-500/20',
-    green:  'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20',
-    amber:  'bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20',
+    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-blue-500/20',
+    green: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20',
+    amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20',
     violet: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20',
-    red:    'bg-red-500/10 text-red-600 dark:text-red-400 ring-red-500/20',
+    red: 'bg-red-500/10 text-red-600 dark:text-red-400 ring-red-500/20',
   }
   const cls = palette[color] || palette.blue
   const inner = (
@@ -171,7 +171,7 @@ export default function LandlordDashboardPage() {
       {/* Stat cards */}
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[0,1,2,3].map(i => (
+          {[0, 1, 2, 3].map(i => (
             <Card key={i}><CardContent className="flex items-center gap-4 p-5">
               <Skeleton className="h-11 w-11 rounded-xl shrink-0" />
               <div className="space-y-2 flex-1"><Skeleton className="h-3 w-20" /><Skeleton className="h-6 w-10" /></div>
@@ -227,7 +227,7 @@ export default function LandlordDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
             {loading ? (
-              [0,1,2].map(i => <Skeleton key={i} className="h-16 rounded-lg" />)
+              [0, 1, 2].map(i => <Skeleton key={i} className="h-16 rounded-lg" />)
             ) : pendingAppts.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-8 text-center">
                 <CheckCircle className="h-8 w-8 text-emerald-400" />
@@ -275,7 +275,7 @@ export default function LandlordDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
             {loading ? (
-              [0,1,2].map(i => <Skeleton key={i} className="h-16 rounded-lg" />)
+              [0, 1, 2].map(i => <Skeleton key={i} className="h-16 rounded-lg" />)
             ) : topRooms.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-8 text-center">
                 <Home className="h-8 w-8 text-muted-foreground/30" />
@@ -296,7 +296,7 @@ export default function LandlordDashboardPage() {
                       <span className="text-xs text-primary font-semibold">{formatCurrency(room.price)}</span>
                       <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium',
                         isAvail ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600')}>
-                        {isAvail ? 'Còn trống' : 'Đã thuê'}
+                        {isAvail ? 'Còn trống' : 'Hết phòng'}
                       </span>
                     </div>
                   </div>
@@ -337,7 +337,7 @@ export default function LandlordDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2 pt-0">
             {loading ? (
-              [0,1,2].map(i => <Skeleton key={i} className="h-12 rounded-lg" />)
+              [0, 1, 2].map(i => <Skeleton key={i} className="h-12 rounded-lg" />)
             ) : conversations.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-8 text-center">
                 <MessageCircle className="h-8 w-8 text-muted-foreground/30" />
@@ -353,8 +353,8 @@ export default function LandlordDashboardPage() {
                     {other?.avatar
                       ? <img src={other.avatar} className="h-8 w-8 rounded-full object-cover" alt="" />
                       : <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-                          {other?.name?.[0] || '?'}
-                        </div>
+                        {other?.name?.[0] || '?'}
+                      </div>
                     }
                     {unread > 0 && (
                       <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center px-0.5">
@@ -386,7 +386,7 @@ export default function LandlordDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2 pt-0">
             {loading ? (
-              [0,1].map(i => <Skeleton key={i} className="h-12 rounded-lg" />)
+              [0, 1].map(i => <Skeleton key={i} className="h-12 rounded-lg" />)
             ) : (
               <>
                 {rooms.filter(r => r.status === 'pending').length > 0 && (
@@ -427,11 +427,11 @@ export default function LandlordDashboardPage() {
                 )}
                 {stats.pendingAppts === 0 &&
                   rooms.filter(r => r.status === 'pending' || r.status === 'flagged' || r.status === 'rejected').length === 0 && (
-                  <div className="flex flex-col items-center gap-2 py-6 text-center">
-                    <CheckCircle className="h-8 w-8 text-emerald-400" />
-                    <p className="text-sm text-muted-foreground">Mọi thứ đều ổn! Không có vấn đề cần xử lý.</p>
-                  </div>
-                )}
+                    <div className="flex flex-col items-center gap-2 py-6 text-center">
+                      <CheckCircle className="h-8 w-8 text-emerald-400" />
+                      <p className="text-sm text-muted-foreground">Mọi thứ đều ổn! Không có vấn đề cần xử lý.</p>
+                    </div>
+                  )}
               </>
             )}
           </CardContent>

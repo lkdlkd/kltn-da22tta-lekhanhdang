@@ -6,7 +6,7 @@ const AI_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000'
  * Call FastAPI recommend engine.
  * FastAPI only processes — no DB access.
  *
- * @param {'similar'|'wizard'} endpoint
+ * @param {'similar'|'wizard'|'for-you'} endpoint
  * @param {object} payload
  * @returns {Promise<object[]>} scored + sorted rooms
  */

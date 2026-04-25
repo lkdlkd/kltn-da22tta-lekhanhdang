@@ -12,15 +12,15 @@ rooms = [
     {'_id': '1', 'price': 1_200_000, 'area': 20, 'capacity': 1,
      'roomType': 'phong_tro', 'amenities': ['wifi', 'dieu_hoa'],
      'location': {'coordinates': [105.97, 10.25]},
-     'averageRating': 4.5, '_behavior': 0.8},
+     '_behavior': 0.8},
     {'_id': '2', 'price': 2_500_000, 'area': 35, 'capacity': 2,
      'roomType': 'chung_cu_mini', 'amenities': ['wifi', 'may_giat', 'tu_lanh'],
      'location': {'coordinates': [105.96, 10.24]},
-     'averageRating': 3.2, '_behavior': 0.3},
+     '_behavior': 0.3},
     {'_id': '3', 'price': 700_000, 'area': 12, 'capacity': 1,
      'roomType': 'ky_tuc_xa', 'amenities': [],
      'location': {'coordinates': [105.98, 10.26]},
-     'averageRating': 0.0, '_behavior': 0.1},
+     '_behavior': 0.1},
 ]
 
 stats  = compute_stats(rooms)
@@ -35,7 +35,7 @@ c = content_scores_batch(zvec, matrix)
 assert not np.any(np.isnan(c)), f"FAIL: nan in zero-vector cosine: {c}"
 print(f"[PASS] zero-vector cosine: {c} (no nan)")
 
-# Test 2: quality scores — room 1 (rating 4.5, behavior 0.8) > room 2 > room 3
+# Test 2: quality scores — room 1 (highest _behavior=0.8) > room 2 > room 3
 q = quality_scores_batch(rooms)
 assert q[0] > q[1] > q[2], f"FAIL: quality order wrong: {q}"
 print(f"[PASS] quality scores: {q}")

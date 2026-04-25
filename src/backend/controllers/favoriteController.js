@@ -1,6 +1,7 @@
 const Favorite = require('../models/Favorite')
 const Room = require('../models/Room')
 const sendResponse = require('../utils/apiResponse')
+const { recordInteraction } = require('./interactionController')
 
 // POST /api/favorites/:roomId
 exports.addFavorite = async (req, res) => {
@@ -9,6 +10,10 @@ exports.addFavorite = async (req, res) => {
     if (!room) return sendResponse(res, 404, false, 'Không tìm thấy phòng')
 
     await Favorite.create({ user: req.user._id, room: req.params.roomId })
+
+    // Ghi hành vi 'save' vào Interaction để cá nhân hóa gợi ý
+    recordInteraction(req.user._id, req.params.roomId, 'save').catch(() => {})
+
     return sendResponse(res, 201, true, 'Đã lưu phòng yêu thích')
   } catch (error) {
     if (error.code === 11000) return sendResponse(res, 409, false, 'Bạn đã lưu phòng này rồi')

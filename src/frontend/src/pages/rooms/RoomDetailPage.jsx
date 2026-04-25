@@ -386,7 +386,7 @@ export default function RoomDetailPage() {
             )}>
               {room.isAvailable
                 ? <><CheckCircle2 className="h-3 w-3" />Còn trống</>
-                : <><XCircle className="h-3 w-3" />Đã thuê</>}
+                : <><XCircle className="h-3 w-3" />Hết phòng</>}
             </span>
             {imgs360.length > 0 && selectedImg && (
               <button

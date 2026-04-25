@@ -37,7 +37,7 @@ function RoomListItem({ room }) {
           'absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
           room.isAvailable ? 'bg-emerald-500 text-white' : 'bg-zinc-500/80 text-white'
         )}>
-          {room.isAvailable ? 'Trống' : 'Đã thuê'}
+          {room.isAvailable ? 'Trống' : 'Hết phòng'}
         </span>
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
@@ -289,8 +289,8 @@ export default function LandlordProfilePage() {
                           {landlord.avgResponseTime < 60
                             ? `${landlord.avgResponseTime} phút`
                             : landlord.avgResponseTime < 1440
-                            ? `${Math.round(landlord.avgResponseTime / 60)} giờ`
-                            : `${Math.round(landlord.avgResponseTime / 1440)} ngày`}
+                              ? `${Math.round(landlord.avgResponseTime / 60)} giờ`
+                              : `${Math.round(landlord.avgResponseTime / 1440)} ngày`}
                         </strong></span>
                       </div>
                     )}
@@ -305,7 +305,7 @@ export default function LandlordProfilePage() {
               {[
                 { key: 'all', label: '🏠 Tất cả phòng', count: rooms.length },
                 { key: 'available', label: '✅ Còn trống', count: stats.availableRooms },
-                { key: 'rented', label: '🔒 Đã thuê', count: rooms.length - stats.availableRooms },
+                { key: 'rented', label: '🔒 Hết phòng', count: rooms.length - stats.availableRooms },
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -332,7 +332,7 @@ export default function LandlordProfilePage() {
               <p className="text-sm font-semibold">
                 {filter === 'all' ? `Tất cả phòng (${rooms.length})`
                   : filter === 'available' ? `Còn trống (${stats.availableRooms})`
-                    : `Đã thuê (${rooms.length - stats.availableRooms})`}
+                    : `Hết phòng (${rooms.length - stats.availableRooms})`}
               </p>
               <div className="flex items-center gap-1.5">
                 <div className="flex rounded-lg border bg-muted/40 p-0.5">
@@ -354,7 +354,7 @@ export default function LandlordProfilePage() {
               <div className="flex flex-col items-center justify-center py-16 round-xl border bg-card border-dashed rounded-xl gap-3 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-2xl">🏠</div>
                 <p className="text-sm text-muted-foreground">
-                  {filter === 'available' ? 'Chưa có phòng trống.' : filter === 'rented' ? 'Chưa có phòng đã thuê.' : 'Chủ trọ chưa đăng phòng nào.'}
+                  {filter === 'available' ? 'Chưa có phòng trống.' : filter === 'rented' ? 'Chưa có phòng cho thuê.' : 'Chủ trọ chưa đăng phòng nào.'}
                 </p>
               </div>
             ) : view === 'grid' ? (

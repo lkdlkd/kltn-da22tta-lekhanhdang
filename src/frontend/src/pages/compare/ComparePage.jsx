@@ -62,7 +62,7 @@ export default function ComparePage() {
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
       ({ coords }) => setUserLocation({ lat: coords.latitude, lng: coords.longitude }),
-      () => {}
+      () => { }
     )
   }, [])
 
@@ -121,28 +121,28 @@ export default function ComparePage() {
               <th className="bg-muted/30 px-4 py-3"></th>
               {loading
                 ? Array.from({ length: compareList.length }).map((_, i) => (
-                    <th key={i} className="px-4 py-3"><Skeleton className="h-32 w-full rounded-lg" /></th>
-                  ))
+                  <th key={i} className="px-4 py-3"><Skeleton className="h-32 w-full rounded-lg" /></th>
+                ))
                 : rooms.map((room) => (
-                    <th key={room._id} className="px-4 py-3 text-left">
-                      <div className="space-y-2">
-                        <div className="relative">
-                          {room.images?.[0] ? (
-                            <img src={room.images[0]} alt={room.title} className="h-36 w-full rounded-lg object-cover" />
-                          ) : (
-                            <div className="h-36 w-full rounded-lg bg-muted flex items-center justify-center text-2xl">🏠</div>
-                          )}
-                          <button
-                            onClick={() => removeRoom(room._id)}
-                            className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 shadow hover:bg-destructive hover:text-white transition-colors"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <p className="font-semibold text-sm leading-snug line-clamp-2">{room.title}</p>
+                  <th key={room._id} className="px-4 py-3 text-left">
+                    <div className="space-y-2">
+                      <div className="relative">
+                        {room.images?.[0] ? (
+                          <img src={room.images[0]} alt={room.title} className="h-36 w-full rounded-lg object-cover" />
+                        ) : (
+                          <div className="h-36 w-full rounded-lg bg-muted flex items-center justify-center text-2xl">🏠</div>
+                        )}
+                        <button
+                          onClick={() => removeRoom(room._id)}
+                          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 shadow hover:bg-destructive hover:text-white transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                    </th>
-                  ))}
+                      <p className="font-semibold text-sm leading-snug line-clamp-2">{room.title}</p>
+                    </div>
+                  </th>
+                ))}
             </tr>
           </thead>
           <tbody>
@@ -151,13 +151,13 @@ export default function ComparePage() {
               {loading
                 ? Array.from({ length: compareList.length }).map((_, i) => <Cell key={i}><Skeleton className="h-6 w-28" /></Cell>)
                 : rooms.map((room) => (
-                    <Cell key={room._id} highlight={room.price === minPrice}>
-                      <span className={cn('text-base font-bold', room.price === minPrice ? 'text-emerald-600' : 'text-primary')}>
-                        {formatCurrency(room.price)}
-                      </span>
-                      {room.price === minPrice && <span className="ml-1.5 text-xs font-normal text-emerald-600">✓ Rẻ nhất</span>}
-                    </Cell>
-                  ))}
+                  <Cell key={room._id} highlight={room.price === minPrice}>
+                    <span className={cn('text-base font-bold', room.price === minPrice ? 'text-emerald-600' : 'text-primary')}>
+                      {formatCurrency(room.price)}
+                    </span>
+                    {room.price === minPrice && <span className="ml-1.5 text-xs font-normal text-emerald-600">✓ Rẻ nhất</span>}
+                  </Cell>
+                ))}
             </Row>
 
             {/* Diện tích */}
@@ -165,11 +165,11 @@ export default function ComparePage() {
               {loading
                 ? Array.from({ length: compareList.length }).map((_, i) => <Cell key={i}><Skeleton className="h-5 w-20" /></Cell>)
                 : rooms.map((room) => (
-                    <Cell key={room._id} highlight={room.area === maxArea}>
-                      {room.area} m²
-                      {room.area === maxArea && <span className="ml-1.5 text-xs text-blue-600">✓ Rộng nhất</span>}
-                    </Cell>
-                  ))}
+                  <Cell key={room._id} highlight={room.area === maxArea}>
+                    {room.area} m²
+                    {room.area === maxArea && <span className="ml-1.5 text-xs text-blue-600">✓ Rộng nhất</span>}
+                  </Cell>
+                ))}
             </Row>
 
             {/* Khoảng cách */}
@@ -193,13 +193,13 @@ export default function ComparePage() {
               {loading
                 ? Array.from({ length: compareList.length }).map((_, i) => <Cell key={i}><Skeleton className="h-5 w-20" /></Cell>)
                 : rooms.map((room) => (
-                    <Cell key={room._id}>
-                      <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                        room.isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground')}>
-                        {room.isAvailable ? '✅ Còn trống' : '❌ Đã thuê'}
-                      </span>
-                    </Cell>
-                  ))}
+                  <Cell key={room._id}>
+                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                      room.isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground')}>
+                      {room.isAvailable ? '✅ Còn trống' : '❌ Hết phòng'}
+                    </span>
+                  </Cell>
+                ))}
             </Row>
 
             {/* Tiện ích */}
@@ -230,17 +230,17 @@ export default function ComparePage() {
               {loading
                 ? Array.from({ length: compareList.length }).map((_, i) => <Cell key={i}><Skeleton className="h-9 w-full" /></Cell>)
                 : rooms.map((room) => (
-                    <Cell key={room._id}>
-                      <div className="flex flex-col gap-2">
-                        <Button size="sm" asChild>
-                          <Link to={`/rooms/${room.slug}`}>
-                            <ExternalLink className="h-3.5 w-3.5" /> Xem chi tiết
-                          </Link>
-                        </Button>
-                        <FavoriteButton roomId={room._id} size="sm" className="w-full justify-center" />
-                      </div>
-                    </Cell>
-                  ))}
+                  <Cell key={room._id}>
+                    <div className="flex flex-col gap-2">
+                      <Button size="sm" asChild>
+                        <Link to={`/rooms/${room.slug}`}>
+                          <ExternalLink className="h-3.5 w-3.5" /> Xem chi tiết
+                        </Link>
+                      </Button>
+                      <FavoriteButton roomId={room._id} size="sm" className="w-full justify-center" />
+                    </div>
+                  </Cell>
+                ))}
             </Row>
           </tbody>
         </table>

@@ -40,15 +40,17 @@ export function RoomCard({ room, distanceText }) {
           </div>
         )}
 
-        {/* Badge trạng thái góc trên trái */}
-        <div className="absolute left-2 top-2">
-          <Badge
-            variant={room.isAvailable ? 'success' : 'muted'}
-            className="shadow-sm"
-          >
-            {room.isAvailable ? 'Còn trống' : 'Đã thuê'}
-          </Badge>
-        </div>
+        {/* Badge trạng thái góc trên trái — chỉ hiện khi field isAvailable có giá trị rõ ràng */}
+        {room.isAvailable !== undefined && (
+          <div className="absolute left-2 top-2">
+            <Badge
+              variant={room.isAvailable ? 'success' : 'muted'}
+              className="shadow-sm"
+            >
+              {room.isAvailable ? 'Còn trống' : 'Hết phòng'}
+            </Badge>
+          </div>
+        )}
 
         {/* Nút yêu thích + so sánh góc trên phải */}
         <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">

@@ -1,24 +1,26 @@
 import { Link } from 'react-router-dom'
-import { Home, Mail, MapPin, Phone, Globe, GraduationCap } from 'lucide-react'
+import { BedDouble, Globe, GraduationCap } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 
 const FOOTER_LINKS = {
   'Khám phá': [
-    { label: 'Trang chủ', to: '/' },
-    { label: 'Tìm phòng', to: '/search' },
-    { label: 'Gợi ý AI', to: '/recommend' },
-    { label: 'So sánh phòng', to: '/compare' },
+    { label: 'Trang chủ',       to: '/' },
+    { label: 'Tìm phòng',      to: '/search' },
+    { label: 'Gợi ý cho bạn', to: '/recommend' },
+    { label: 'So sánh phòng',   to: '/compare' },
   ],
   'Tài khoản': [
-    { label: 'Đăng nhập', to: '/login' },
-    { label: 'Đăng ký', to: '/register' },
-    { label: 'Hồ sơ cá nhân', to: '/profile' },
+    { label: 'Đăng nhập',       to: '/login' },
+    { label: 'Đăng ký',         to: '/register' },
+    { label: 'Hồ sơ cá nhân',  to: '/profile' },
     { label: 'Phòng yêu thích', to: '/favorites' },
+    { label: 'Lịch hẹn',       to: '/appointments' },
   ],
   'Chủ trọ': [
+    { label: 'Dashboard',     to: '/landlord/dashboard' },
     { label: 'Đăng tin phòng', to: '/landlord/rooms/create' },
     { label: 'Quản lý phòng', to: '/landlord/rooms' },
-    { label: 'Lịch hẹn', to: '/landlord/appointments' },
+    { label: 'Lịch hẹn',     to: '/landlord/appointments' },
   ],
 }
 
@@ -34,14 +36,20 @@ export function Footer() {
 
           {/* Brand — 2 cols wide */}
           <div className="lg:col-span-2 space-y-4">
-            <Link to="/" className="flex items-center gap-2.5 font-bold text-primary">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                <Home className="h-4 w-4" />
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-sm">
+                <BedDouble className="h-4 w-4" />
               </div>
-              <span className="text-base tracking-tight">PhòngTrọ <span className="text-muted-foreground font-normal">VL</span></span>
+              <div className="leading-none">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-extrabold tracking-tight text-foreground">Phòng Trọ</span>
+                  <span className="text-sm font-extrabold text-primary">TVU</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Tìm phòng · Gợi ý AI · Vĩnh Long</p>
+              </div>
             </Link>
             <p className="text-sm text-muted-foreground leading-6">
-              Hệ thống hỗ trợ tìm kiếm và gợi ý phòng trọ sinh viên tại Vĩnh Long với công nghệ AI Hybrid.
+              Hệ thống tìm kiếm và gợi ý phòng trọ sinh viên tại Vĩnh Long ứng dụng AI Hybrid — nhanh, chính xác, miễn phí.
             </p>
 
             {/* TVU credit */}
@@ -49,7 +57,7 @@ export function Footer() {
               <GraduationCap className="h-4 w-4 text-primary mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-foreground leading-snug">Đồ án tốt nghiệp</p>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Trường Đại học Trà Vinh</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Trường Đại học Trà Vinh · CNTT</p>
               </div>
             </div>
           </div>
@@ -79,10 +87,10 @@ export function Footer() {
         {/* Bottom row */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 text-center sm:text-left">
-            <p>© {year} PhòngTrọ VL.</p>
+            <p>© {year} Phòng Trọ TVU.</p>
             <span className="hidden sm:block text-muted-foreground/40">·</span>
             <p>
-              Đồ án tốt nghiệp — 
+              Đồ án tốt nghiệp —
               <a href="https://www.tvu.edu.vn" target="_blank" rel="noreferrer"
                 className="ml-1 font-medium text-foreground hover:text-primary transition-colors">
                 Trường Đại học Trà Vinh

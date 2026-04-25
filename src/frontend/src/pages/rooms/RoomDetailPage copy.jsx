@@ -76,7 +76,7 @@ function PageSkeleton() {
         <div className="space-y-4">
           <Skeleton className="h-8 w-3/4" />
           <Skeleton className="h-4 w-1/2" />
-          <div className="grid grid-cols-4 gap-2">{[0,1,2,3].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
+          <div className="grid grid-cols-4 gap-2">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
           <Skeleton className="h-48 rounded-xl" />
         </div>
         <div className="space-y-3">
@@ -158,17 +158,17 @@ export default function RoomDetailPage() {
         const r = await getRoomDistanceApi(room._id, loc.lat, loc.lng)
         setDistanceText(r.data?.data?.distance_text || '')
       } catch { setDistanceText('') }
-    }, () => {})
+    }, () => { })
   }, [room])
 
   useEffect(() => { setImgIdx(0) }, [room?.slug])
 
   useEffect(() => {
     if (!room?._id || !user) return
-    createInteractionApi(room._id, 'view').catch(() => {})
+    createInteractionApi(room._id, 'view').catch(() => { })
     getFavoriteIdsApi()
       .then((r) => setIsFavorited((r.data?.data?.roomIds || []).includes(String(room._id))))
-      .catch(() => {})
+      .catch(() => { })
   }, [room?._id, user])
 
   const roomPosition = useMemo(() => {
@@ -232,7 +232,7 @@ export default function RoomDetailPage() {
   )
 
   const hasVideo = videos.length > 0
-  const hasPano  = imgs360.length > 0
+  const hasPano = imgs360.length > 0
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5 space-y-5">
@@ -302,7 +302,7 @@ export default function RoomDetailPage() {
                   room.isAvailable ? 'bg-emerald-500/95 text-white' : 'bg-zinc-800/90 text-white')}>
                   {room.isAvailable
                     ? <><CheckCircle2 className="h-3.5 w-3.5" />Còn phòng</>
-                    : <><XCircle className="h-3.5 w-3.5" />Đã thuê</>}
+                    : <><XCircle className="h-3.5 w-3.5" />Hết phòng</>}
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-black/50 backdrop-blur-sm px-2.5 py-1 text-xs text-white">
                   {ROOM_TYPE_LABELS[room.roomType] || 'Phòng trọ'}
@@ -404,10 +404,10 @@ export default function RoomDetailPage() {
           {/* 4-stat row */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label: 'Diện tích',   val: `${room.area || '—'} m²`,    icon: Home },
-              { label: 'Sức chứa',   val: `${room.capacity || '—'} người`, icon: Eye },
-              { label: 'Lượt xem',   val: room.viewCount || 0,           icon: Eye },
-              { label: 'Ngày đăng',  val: new Date(room.createdAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'2-digit' }), icon: Calendar },
+              { label: 'Diện tích', val: `${room.area || '—'} m²`, icon: Home },
+              { label: 'Sức chứa', val: `${room.capacity || '—'} người`, icon: Eye },
+              { label: 'Lượt xem', val: room.viewCount || 0, icon: Eye },
+              { label: 'Ngày đăng', val: new Date(room.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' }), icon: Calendar },
             ].map(({ label, val, icon: Icon }) => (
               <div key={label} className="flex items-center gap-3 rounded-xl border bg-card p-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
@@ -425,10 +425,10 @@ export default function RoomDetailPage() {
           <div className="rounded-2xl border bg-card overflow-hidden">
             {/* Tab bar */}
             <div className="flex overflow-x-auto scrollbar-none border-b bg-muted/20">
-              <TabBtn active={activeTab==='info'}    onClick={() => setActiveTab('info')}    icon={Info}          label="Thông tin" />
-              {hasVideo && <TabBtn active={activeTab==='video'} onClick={() => setActiveTab('video')} icon={Video}      label="Video" count={videos.length} />}
-              <TabBtn active={activeTab==='map'}     onClick={() => setActiveTab('map')}     icon={Map}           label="Bản đồ" />
-              <TabBtn active={activeTab==='reviews'} onClick={() => setActiveTab('reviews')} icon={MessageSquare} label="Bình luận" />
+              <TabBtn active={activeTab === 'info'} onClick={() => setActiveTab('info')} icon={Info} label="Thông tin" />
+              {hasVideo && <TabBtn active={activeTab === 'video'} onClick={() => setActiveTab('video')} icon={Video} label="Video" count={videos.length} />}
+              <TabBtn active={activeTab === 'map'} onClick={() => setActiveTab('map')} icon={Map} label="Bản đồ" />
+              <TabBtn active={activeTab === 'reviews'} onClick={() => setActiveTab('reviews')} icon={MessageSquare} label="Bình luận" />
             </div>
 
             {/* Tab: Thông tin */}
@@ -590,7 +590,7 @@ export default function RoomDetailPage() {
                     : 'bg-zinc-500 text-white'
                 )}>
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
-                  {room.isAvailable ? 'Còn phòng' : 'Đã thuê'}
+                  {room.isAvailable ? 'Còn phòng' : 'Hết phòng'}
                 </span>
               </div>
               {distanceText && (
