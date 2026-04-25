@@ -144,17 +144,16 @@ def for_you_recommend(req: ForYouRequest):
     user_profile_vec = build_user_profile_vector(history_rooms, history_types, stats, interacted_ats)
 
     # ── Weight strategy ──────────────────────────────────────────────────
-    # If user has history → personal affinity is the strongest signal
-    # If no history → fall back to criteria-only (like wizard)
+    # GPS active: location becomes dominant → ưu tiên phòng gần nhất
+    # MongoDB đã sort gần→xa bằng $near; FastAPI tăng cường bằng location score
     if has_history:
         if has_gps:
-            weights = {"content": 0.25, "location": 0.20, "quality": 0.15, "personal": 0.40}
+            weights = {"content": 0.15, "location": 0.45, "quality": 0.10, "personal": 0.30}
         else:
             weights = {"content": 0.30, "location": 0.00, "quality": 0.20, "personal": 0.50}
     else:
-        # No history → same as wizard
         if has_gps:
-            weights = {"content": 0.35, "location": 0.40, "quality": 0.25, "personal": 0.00}
+            weights = {"content": 0.20, "location": 0.55, "quality": 0.25, "personal": 0.00}
         else:
             weights = {"content": 0.65, "location": 0.00, "quality": 0.35, "personal": 0.00}
 

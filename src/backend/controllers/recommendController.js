@@ -290,26 +290,32 @@ exports.forYouRecommend = async (req, res) => {
     const capacity = userCapacity || 1
     const amenities = [...new Set([...userAmenities, ...(implicit?.amenities || [])])]
 
-    // ── Bước 4: Build MongoDB filter ──────────────────────────────────
-    // Chỉ dùng criteria user nhập rõ để filter MongoDB.
-    // Không loại trừ phòng đã xem: user có thể muốn xem lại phòng yêu thích
-    // + FastAPI tự trung hòa giữa phòng đã xem và phòng tương tự mới
-    const mongoFilter = buildMongoFilter({
-      roomType: userRoomType || null,
-      priceMin: userPriceMin ?? 0,
-      priceMax: userPriceMax ?? 20_000_000,
-      areaMin: userAreaMin || 0,
-      capacity: userCapacity || 1,
-      lat, lng,
-      radius: lat && lng ? Number(radius) * 1.5 : radius,
-    })
+    // ── Bước 4: Lấy candidates từ MongoDB ──────────────────────────────────
+    const hasGps = !!(lat && lng)
+    let rawCandidates
 
-    let rawCandidates = await Room.find(mongoFilter).limit(300).populate('landlord', 'name avatar')
+    if (hasGps) {
+      // Có GPS: chỉ lọc theo vị trí — $near trả kết quả sắp xếp GẦN → XA
+      // Không thêm bất kỳ tiêu chí nào khác, FastAPI tự phân tích trên pool này
+      const gpsFilter = {
+        status: 'approved',
+        isAvailable: true,
+        location: {
+          $near: {
+            // Không có $maxDistance → sort toàn bộ DB gần → xa theo vị trí user
+            $geometry: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+          },
+        },
+      }
+      rawCandidates = await Room.find(gpsFilter).limit(300).populate('landlord', 'name avatar')
 
-    // Nếu có GPS mà không có kết quả → retry không có GPS (tránh empty với vùng ít phòng)
-    if (!rawCandidates.length && lat && lng) {
-      const { location: _loc, ...filterWithoutGps } = mongoFilter
-      rawCandidates = await Room.find(filterWithoutGps).limit(300).populate('landlord', 'name avatar')
+      // Không giới hạn bán kính — $near không có $maxDistance sắp xếp toàn bộ DB gần → xa
+      // Lấy 300 phòng gần nhất với user, FastAPI tự phân tích trên pool này
+    } else {
+      // Không GPS: lấy toàn bộ phòng, FastAPI dùng behavior + content để xếp hạng
+      rawCandidates = await Room.find({ status: 'approved', isAvailable: true })
+        .limit(300)
+        .populate('landlord', 'name avatar')
     }
 
     if (!rawCandidates.length) {
