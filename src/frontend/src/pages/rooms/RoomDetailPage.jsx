@@ -221,62 +221,32 @@ export default function RoomDetailPage() {
     if (!room?.location?.coordinates) return
     const [roomLng, roomLat] = room.location.coordinates
 
-    const onGpsSuccess = (pos) => {
-      const { latitude: lat, longitude: lng } = pos.coords
-      setUserLocation({ lat, lng })
-      setGpsBlocked(false); setGpsError(false)
-      const R = 6371
-      const dLat = ((roomLat - lat) * Math.PI) / 180
-      const dLng = ((roomLng - lng) * Math.PI) / 180
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat * Math.PI) / 180) * Math.cos((roomLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
-      const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
-      setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
+    if (!navigator.geolocation) {
+      setGpsBlocked(true)
+      return
     }
 
-    const onGpsError = (err) => {
-      if (err.code === err.PERMISSION_DENIED) setGpsBlocked(true)
-      else setGpsError(true)
-    }
-
-    if (!navigator.geolocation) { setGpsBlocked(true); return }
-
-    // Dùng Permissions API để kiểm tra trước:
-    // - denied  → hiện banner hướng dẫn ngay (không popup thêm)
-    // - prompt  → gọi getCurrentPosition → trình duyệt popup xin quyền
-    // - granted → lấy vị trí im lặng
-    if (navigator.permissions?.query) {
-      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-        if (result.state === 'denied') {
-          setGpsBlocked(true)
-        } else {
-          // state === 'prompt' || 'granted'
-          navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
-            enableHighAccuracy: false, timeout: 8000, maximumAge: 60000,
-          })
-        }
-        // Lắng nghe thay đổi quyền (user bật lại trong cài đặt)
-        result.onchange = () => {
-          if (result.state === 'granted') {
-            setGpsBlocked(false)
-            navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
-              enableHighAccuracy: false, timeout: 8000, maximumAge: 0,
-            })
-          } else if (result.state === 'denied') {
-            setGpsBlocked(true)
-          }
-        }
-      }).catch(() => {
-        // Permissions API thất bại → fallback trực tiếp
-        navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
-          enableHighAccuracy: false, timeout: 8000, maximumAge: 60000,
-        })
-      })
-    } else {
-      // Không hỗ trợ Permissions API (Safari cũ) → gọi trực tiếp
-      navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
-        enableHighAccuracy: false, timeout: 8000, maximumAge: 60000,
-      })
-    }
+    // Gọi trực tiếp — browser tự hiện popup xin quyền nếu chưa cấp
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords
+        setUserLocation({ lat, lng })
+        setGpsBlocked(false); setGpsError(false)
+        const R = 6371
+        const dLat = ((roomLat - lat) * Math.PI) / 180
+        const dLng = ((roomLng - lng) * Math.PI) / 180
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat * Math.PI) / 180) * Math.cos((roomLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+        const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
+        setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
+      },
+      (err) => {
+        if (err.code === 1) setGpsBlocked(true)   // PERMISSION_DENIED
+        else if (err.code === 2) setGpsError(true) // POSITION_UNAVAILABLE
+        else if (err.code === 3) setGpsError(true) // TIMEOUT
+        else setGpsError(true)
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    )
   }, [room])
 
   useEffect(() => { setImgIdx(0) }, [room?.slug])

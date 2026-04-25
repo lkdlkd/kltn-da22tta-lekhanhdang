@@ -115,29 +115,21 @@ export default function RecommendPage() {
     const onSuccess = (pos) => {
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
       setApiGps(coords)
-      setDisplayGps(coords) // cập nhật luôn displayGps với độ chính xác cao hơn
+      setDisplayGps(coords)
       setLocating(false)
       doFetch(coords)
     }
 
-    const onError = (err, isRetry = false) => {
-      if (!isRetry && err.code === err.TIMEOUT) {
-        navigator.geolocation.getCurrentPosition(onSuccess, e => onError(e, true), {
-          enableHighAccuracy: false, timeout: 10000, maximumAge: 60000,
-        })
-        return
-      }
+    const onError = (err) => {
       setLocating(false)
-      const msgs = {
-        [err.PERMISSION_DENIED]:    'Bạn đã từ chối GPS. Vui lòng cấp quyền vị trí trong cài đặt trình duyệt.',
-        [err.POSITION_UNAVAILABLE]: 'Không xác định được vị trí. Kiểm tra kết nối mạng hoặc GPS thiết bị.',
-        [err.TIMEOUT]:              'Hết thời gian lấy GPS. Vui lòng thử lại.',
-      }
-      toast.error(msgs[err.code] || 'Không lấy được vị trí.')
+      if (err.code === 1) toast.error('Bạn đã từ chối GPS. Vui lòng cấp quyền vị trí trong cài đặt trình duyệt.')
+      else if (err.code === 2) toast.error('Không xác định được vị trí. Kiểm tra kết nối mạng hoặc GPS thiết bị.')
+      else if (err.code === 3) toast.error('Hết thời gian lấy GPS. Vui lòng thử lại.')
+      else toast.error('Không lấy được vị trí.')
     }
 
     navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-      enableHighAccuracy: true, timeout: 8000, maximumAge: 30000,
+      enableHighAccuracy: true, timeout: 15000, maximumAge: 0,
     })
   }
 
