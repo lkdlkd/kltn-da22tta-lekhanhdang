@@ -12,6 +12,7 @@ import { RoomCard } from '@/components/rooms/RoomCard'
 import { cn } from '@/lib/utils'
 import { selectIsAuthenticated } from '@/features/auth/authSlice'
 import { forYouApi, wizardRecommendApi } from '@/services/recommendService'
+import { getApproxLocation } from '@/utils/getApproxLocation'
 
 // ── Distance helpers ──────────────────────────────────────────────────────────
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -97,29 +98,9 @@ export default function RecommendPage() {
 
   useEffect(() => { doFetch(null) }, [isAuth]) // eslint-disable-line
 
-  // Lấy GPS ngầm khi mount — chỉ để hiển thị khoảng cách, không gửi API
-  // Ưu tiên: Browser GPS → fallback IP Geolocation (luôn hoạt động, không cần permission)
+  // Lấy vị trí ngầm khi mount — chỉ để hiển thị khoảng cách, không gửi API
   useEffect(() => {
-    const setFromIp = async () => {
-      try {
-        const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) })
-        const data = await res.json()
-        if (data?.latitude && data?.longitude) {
-          setDisplayGps({ lat: data.latitude, lng: data.longitude })
-        }
-      } catch { /* im lặng */ }
-    }
-
-    if (!navigator.geolocation) {
-      setFromIp()
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setDisplayGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setFromIp(), // GPS thất bại → dùng IP geo
-      { enableHighAccuracy: false, timeout: 4000, maximumAge: 120000 }
-    )
+    getApproxLocation().then(coords => { if (coords) setDisplayGps(coords) })
   }, [])
 
   // ── GPS ───────────────────────────────────────────────────────────────────
