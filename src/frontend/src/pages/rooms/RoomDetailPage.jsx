@@ -225,7 +225,6 @@ export default function RoomDetailPage() {
       const { latitude: lat, longitude: lng } = pos.coords
       setUserLocation({ lat, lng })
       setGpsBlocked(false); setGpsError(false)
-      // Tính khoảng cách Haversine
       const R = 6371
       const dLat = ((roomLat - lat) * Math.PI) / 180
       const dLng = ((roomLng - lng) * Math.PI) / 180
@@ -240,9 +239,44 @@ export default function RoomDetailPage() {
     }
 
     if (!navigator.geolocation) { setGpsBlocked(true); return }
-    navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
-      enableHighAccuracy: false, timeout: 6000, maximumAge: 60000,
-    })
+
+    // Dùng Permissions API để kiểm tra trước:
+    // - denied  → hiện banner hướng dẫn ngay (không popup thêm)
+    // - prompt  → gọi getCurrentPosition → trình duyệt popup xin quyền
+    // - granted → lấy vị trí im lặng
+    if (navigator.permissions?.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        if (result.state === 'denied') {
+          setGpsBlocked(true)
+        } else {
+          // state === 'prompt' || 'granted'
+          navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
+            enableHighAccuracy: false, timeout: 8000, maximumAge: 60000,
+          })
+        }
+        // Lắng nghe thay đổi quyền (user bật lại trong cài đặt)
+        result.onchange = () => {
+          if (result.state === 'granted') {
+            setGpsBlocked(false)
+            navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
+              enableHighAccuracy: false, timeout: 8000, maximumAge: 0,
+            })
+          } else if (result.state === 'denied') {
+            setGpsBlocked(true)
+          }
+        }
+      }).catch(() => {
+        // Permissions API thất bại → fallback trực tiếp
+        navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
+          enableHighAccuracy: false, timeout: 8000, maximumAge: 60000,
+        })
+      })
+    } else {
+      // Không hỗ trợ Permissions API (Safari cũ) → gọi trực tiếp
+      navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
+        enableHighAccuracy: false, timeout: 8000, maximumAge: 60000,
+      })
+    }
   }, [room])
 
   useEffect(() => { setImgIdx(0) }, [room?.slug])
