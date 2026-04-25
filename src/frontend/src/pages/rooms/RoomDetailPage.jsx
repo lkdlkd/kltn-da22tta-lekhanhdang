@@ -217,16 +217,16 @@ export default function RoomDetailPage() {
       .finally(() => setLoading(false))
   }, [slug])
 
-  useEffect(() => {
+  // GPS — chỉ gọi khi user click (để Safari iOS cho phép popup xin quyền)
+  const requestUserLocation = () => {
     if (!room?.location?.coordinates) return
     const [roomLng, roomLat] = room.location.coordinates
 
     if (!navigator.geolocation) {
-      setGpsBlocked(true)
-      return
+      setGpsBlocked(true); return
     }
 
-    // Gọi trực tiếp — browser tự hiện popup xin quyền nếu chưa cấp
+    setGpsError(false); setGpsBlocked(false)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords
@@ -240,14 +240,14 @@ export default function RoomDetailPage() {
         setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
       },
       (err) => {
-        if (err.code === 1) setGpsBlocked(true)   // PERMISSION_DENIED
-        else if (err.code === 2) setGpsError(true) // POSITION_UNAVAILABLE
-        else if (err.code === 3) setGpsError(true) // TIMEOUT
+        if (err.code === 1) setGpsBlocked(true)
+        else if (err.code === 2) setGpsError(true)
+        else if (err.code === 3) setGpsError(true)
         else setGpsError(true)
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     )
-  }, [room])
+  }
 
   useEffect(() => { setImgIdx(0) }, [room?.slug])
 
@@ -526,10 +526,17 @@ export default function RoomDetailPage() {
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge variant="secondary">{ROOM_TYPE_LABELS[room.roomType] || 'Phòng trọ'}</Badge>
-              {distanceText && (
-                <Badge variant="outline" className="gap-1">
+              {distanceText ? (
+                <Badge variant="outline" className="gap-1 cursor-pointer" onClick={requestUserLocation}>
                   <MapPin className="h-2.5 w-2.5" />{distanceText}
                 </Badge>
+              ) : !gpsBlocked && (
+                <button
+                  onClick={requestUserLocation}
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-primary/40 px-2 py-0.5 text-[11px] text-primary hover:bg-primary/5 transition-colors"
+                >
+                  <MapPin className="h-2.5 w-2.5" /> Bật vị trí
+                </button>
               )}
             </div>
             <h1 className="text-xl font-bold leading-snug sm:text-2xl">{room.title}</h1>
@@ -563,26 +570,7 @@ export default function RoomDetailPage() {
               <span className="text-base">🛰️</span>
               <p className="text-muted-foreground flex-1">Không lấy được vị trí. Kiểm tra GPS thiết bị hoặc kết nối mạng.</p>
               <button
-                onClick={() => {
-                  setGpsError(false)
-                  if (!room?.location?.coordinates || !navigator.geolocation) return
-                  const [roomLng, roomLat] = room.location.coordinates
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      const { latitude: lat, longitude: lng } = pos.coords
-                      setUserLocation({ lat, lng })
-                      setGpsError(false)
-                      const R = 6371
-                      const dLat = ((roomLat - lat) * Math.PI) / 180
-                      const dLng = ((roomLng - lng) * Math.PI) / 180
-                      const a = Math.sin(dLat/2)**2 + Math.cos(lat*Math.PI/180)*Math.cos(roomLat*Math.PI/180)*Math.sin(dLng/2)**2
-                      const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
-                      setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
-                    },
-                    () => setGpsError(true),
-                    { enableHighAccuracy: false, timeout: 8000, maximumAge: 0 }
-                  )
-                }}
+                onClick={requestUserLocation}
                 className="shrink-0 rounded-lg border px-2.5 py-1 font-medium hover:bg-muted transition-colors"
               >
                 Thử lại
