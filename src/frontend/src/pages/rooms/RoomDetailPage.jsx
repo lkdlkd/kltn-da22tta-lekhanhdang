@@ -32,7 +32,6 @@ import { CompareButton } from '@/components/compare/CompareBar'
 import { PanoramaViewer } from '@/components/rooms/PanoramaViewer'
 import { SimilarRooms } from '@/components/rooms/SimilarRooms'
 import { cn } from '@/lib/utils'
-import { getApproxLocation } from '@/utils/getApproxLocation'
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const ROOM_TYPE_LABELS = {
@@ -191,6 +190,8 @@ export default function RoomDetailPage() {
   const [activeTab, setActiveTab] = useState('info')
   const [userLocation, setUserLocation] = useState(null)
   const [distanceText, setDistanceText] = useState('')
+  const [gpsBlocked, setGpsBlocked]     = useState(false)  // user tắt GPS trong browser
+  const [gpsError, setGpsError]         = useState(false)  // lỗi khác (timeout/unavailable)
   const [routePositions, setRoutePositions] = useState([])
   const [routeSummary, setRouteSummary] = useState('')
   const [routing, setRouting] = useState(false)
@@ -220,21 +221,28 @@ export default function RoomDetailPage() {
     if (!room?.location?.coordinates) return
     const [roomLng, roomLat] = room.location.coordinates
 
-    const calcDistance = (userLat, userLng) => {
-      setUserLocation({ lat: userLat, lng: userLng })
+    const onGpsSuccess = (pos) => {
+      const { latitude: lat, longitude: lng } = pos.coords
+      setUserLocation({ lat, lng })
+      setGpsBlocked(false); setGpsError(false)
+      // Tính khoảng cách Haversine
       const R = 6371
-      const dLat = ((roomLat - userLat) * Math.PI) / 180
-      const dLng = ((roomLng - userLng) * Math.PI) / 180
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((userLat * Math.PI) / 180) *
-        Math.cos((roomLat * Math.PI) / 180) *
-        Math.sin(dLng / 2) ** 2
+      const dLat = ((roomLat - lat) * Math.PI) / 180
+      const dLng = ((roomLng - lng) * Math.PI) / 180
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat * Math.PI) / 180) * Math.cos((roomLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
       const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
       setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
     }
 
-    getApproxLocation().then(coords => { if (coords) calcDistance(coords.lat, coords.lng) })
+    const onGpsError = (err) => {
+      if (err.code === err.PERMISSION_DENIED) setGpsBlocked(true)
+      else setGpsError(true)
+    }
+
+    if (!navigator.geolocation) { setGpsBlocked(true); return }
+    navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
+      enableHighAccuracy: false, timeout: 6000, maximumAge: 60000,
+    })
   }, [room])
 
   useEffect(() => { setImgIdx(0) }, [room?.slug])
@@ -268,30 +276,60 @@ export default function RoomDetailPage() {
   }
 
   const handleDirections = async () => {
-    if (!userLocation) { toast.error('Bật định vị để chỉ đường'); return }
     if (!roomPosition) return
-    try {
-      setRouting(true); setRouteSummary('')
-      const { lat: oLat, lng: oLng } = userLocation
-      const [dLat, dLng] = roomPosition
-      const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${oLng},${oLat};${dLng},${dLat}?overview=full&geometries=geojson`)
-      const d = await r.json()
-      const route = d?.routes?.[0]
-      if (!route?.geometry?.coordinates?.length) throw new Error()
-      const pos = route.geometry.coordinates.map(([ln, lt]) => [lt, ln])
-      setRoutePositions(pos)
-      const dist = route.distance ? `${(route.distance / 1000).toFixed(1)} km` : ''
-      const dur = route.duration ? `~${Math.round(route.duration / 60)} phút` : ''
-      setRouteSummary([dist, dur].filter(Boolean).join(' · '))
-      mapRef.current?.fitBounds?.(pos, { padding: [30, 30] })
-      setActiveTab('map')
-      toast.success('Đã vẽ tuyến đường!')
-    } catch {
-      const p = [[userLocation.lat, userLocation.lng], roomPosition]
-      setRoutePositions(p)
-      setRouteSummary('Đường thẳng ước lượng')
-      toast.error('Không lấy được lộ trình')
-    } finally { setRouting(false) }
+
+    const doRoute = async (loc) => {
+      try {
+        setRouting(true); setRouteSummary('')
+        const { lat: oLat, lng: oLng } = loc
+        const [dLat, dLng] = roomPosition
+        const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${oLng},${oLat};${dLng},${dLat}?overview=full&geometries=geojson`)
+        const d = await r.json()
+        const route = d?.routes?.[0]
+        if (!route?.geometry?.coordinates?.length) throw new Error()
+        const pos = route.geometry.coordinates.map(([ln, lt]) => [lt, ln])
+        setRoutePositions(pos)
+        const dist = route.distance ? `${(route.distance / 1000).toFixed(1)} km` : ''
+        const dur = route.duration ? `~${Math.round(route.duration / 60)} phút` : ''
+        setRouteSummary([dist, dur].filter(Boolean).join(' · '))
+        mapRef.current?.fitBounds?.(pos, { padding: [30, 30] })
+        setActiveTab('map')
+        toast.success('Đã vẽ tuyến đường!')
+      } catch {
+        const p = [[loc.lat, loc.lng], roomPosition]
+        setRoutePositions(p)
+        setRouteSummary('Đường thẳng ước lượng')
+        toast.error('Không lấy được lộ trình')
+      } finally { setRouting(false) }
+    }
+
+    if (userLocation) { doRoute(userLocation); return }
+
+    if (!navigator.geolocation) {
+      toast.error('Trình duyệt không hỗ trợ GPS')
+      return
+    }
+
+    setRouting(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setUserLocation(loc)
+        setGpsBlocked(false); setGpsError(false)
+        doRoute(loc)
+      },
+      (err) => {
+        setRouting(false)
+        if (err.code === err.PERMISSION_DENIED) {
+          setGpsBlocked(true)
+          toast.error('Địa điểm bị tắt. Mở Cài đặt → Trình duyệt → Quyền vị trí để bật.')
+        } else {
+          setGpsError(true)
+          toast.error('Không lấy được vị trí. Kiểm tra kết nối mạng và GPS thiết bị.')
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    )
   }
 
   const goImg = (dir) => setImgIdx((i) => (i + dir + imgs.length) % imgs.length)
@@ -498,6 +536,55 @@ export default function RoomDetailPage() {
               </p>
             )}
           </div>
+
+          {/* GPS hints */}
+          {gpsBlocked && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs dark:border-amber-800 dark:bg-amber-950/40">
+              <span className="text-base leading-none mt-0.5">📍</span>
+              <div>
+                <p className="font-semibold text-amber-800 dark:text-amber-300">Quyền vị trí bị tắt</p>
+                <p className="text-amber-700 dark:text-amber-400 mt-0.5">
+                  Để xem khoảng cách và chỉ đường, hãy bật vị trí trong trình duyệt:
+                </p>
+                <ul className="mt-1 space-y-0.5 text-amber-700 dark:text-amber-400 list-disc list-inside">
+                  <li><span className="font-medium">Chrome:</span> Thanh địa chỉ → 🔒 → Vị trí → Cho phép</li>
+                  <li><span className="font-medium">Safari iOS:</span> Cài đặt → Safari → Vị trí → Hỏi</li>
+                  <li><span className="font-medium">Firefox:</span> Thanh địa chỉ → 🛡️ → Vị trí → Cho phép</li>
+                </ul>
+              </div>
+            </div>
+          )}
+          {gpsError && !gpsBlocked && (
+            <div className="flex items-center gap-2.5 rounded-xl border border-muted px-3.5 py-2.5 text-xs">
+              <span className="text-base">🛰️</span>
+              <p className="text-muted-foreground flex-1">Không lấy được vị trí. Kiểm tra GPS thiết bị hoặc kết nối mạng.</p>
+              <button
+                onClick={() => {
+                  setGpsError(false)
+                  if (!room?.location?.coordinates || !navigator.geolocation) return
+                  const [roomLng, roomLat] = room.location.coordinates
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      const { latitude: lat, longitude: lng } = pos.coords
+                      setUserLocation({ lat, lng })
+                      setGpsError(false)
+                      const R = 6371
+                      const dLat = ((roomLat - lat) * Math.PI) / 180
+                      const dLng = ((roomLng - lng) * Math.PI) / 180
+                      const a = Math.sin(dLat/2)**2 + Math.cos(lat*Math.PI/180)*Math.cos(roomLat*Math.PI/180)*Math.sin(dLng/2)**2
+                      const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
+                      setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
+                    },
+                    () => setGpsError(true),
+                    { enableHighAccuracy: false, timeout: 8000, maximumAge: 0 }
+                  )
+                }}
+                className="shrink-0 rounded-lg border px-2.5 py-1 font-medium hover:bg-muted transition-colors"
+              >
+                Thử lại
+              </button>
+            </div>
+          )}
 
           {/* Quick stats */}
           <Card>
