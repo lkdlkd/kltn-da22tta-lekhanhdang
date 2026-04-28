@@ -20,6 +20,7 @@ import { Separator } from '@/components/ui/separator'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { LocationPickerDialog } from '@/components/common/LocationPickerDialog'
 
 /* ── Constants ─────────────────────────────────────────────────────────── */
 const PRICE_MAX = 10_000_000
@@ -136,7 +137,7 @@ function RangeSlider({ label, min, max, step, valueMin, valueMax, onCommit, form
 }
 
 /* ── FilterPanel ─────────────────────────────────────────────────────────── */
-function FilterPanel({ filters, onChange, onReset, activeCount, compact = false }) {
+function FilterPanel({ filters, onChange, onReset, activeCount, compact = false, userLocation, onRequestLocation }) {
   const toggleAmenity = (val) => {
     const cur = filters.amenities
     onChange('amenities', cur.includes(val) ? cur.filter(a => a !== val) : [...cur, val])
@@ -225,8 +226,8 @@ function FilterPanel({ filters, onChange, onReset, activeCount, compact = false 
           {RADIUS_OPTIONS.map(r => (
             <button key={r.value} type="button"
               onClick={() => {
-                handleChange('radius', r.value)
-                if (r.value && !userLocation) requestGps()
+                onChange('radius', r.value)
+                if (r.value && !userLocation) onRequestLocation?.()
               }}
               className={cn(
                 'rounded-lg border px-3 py-1.5 text-xs font-medium transition-all text-center',
@@ -238,7 +239,11 @@ function FilterPanel({ filters, onChange, onReset, activeCount, compact = false 
             </button>
           ))}
         </div>
-        <p className="text-[10px] text-muted-foreground">Cần bật GPS để lọc theo khoảng cách</p>
+        {!userLocation && (
+          <p className="text-[10px] text-muted-foreground">
+            Chọn bán kính sẽ mở hộp thoại chọn vị trí
+          </p>
+        )}
       </Section>
 
       <Separator />
@@ -444,20 +449,8 @@ export default function SearchPage() {
     return n
   }, [filters])
 
-  /* GPS — chỉ request khi user chọn radius filter (user gesture cho Safari) */
-  const requestGps = (onSuccess) => {
-    if (!navigator.geolocation) { toast.error('Trình duyệt không hỗ trợ GPS'); return }
-    navigator.geolocation.getCurrentPosition(
-      (p) => { setUserLocation({ lat: p.coords.latitude, lng: p.coords.longitude }); onSuccess?.() },
-      (err) => {
-        if (err.code === 1) toast.error('Quyền vị trí bị tắt. Vui lòng cấp quyền trong cài đặt trình duyệt.')
-        else if (err.code === 2) toast.error('Không xác định được vị trí. Kiểm tra GPS thiết bị.')
-        else if (err.code === 3) toast.error('Hết thời gian lấy vị trí. Vui lòng thử lại.')
-        handleChange('radius', '') // xóa radius nếu không lấy được GPS
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-    )
-  }
+  /* Mở LocationPickerDialog — gọi từ nút chọn bán kính hoặc nút GPS */
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false)
 
   /* Fetch */
   useEffect(() => {
@@ -715,7 +708,14 @@ export default function SearchPage() {
                   <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">{activeCount}</span>
                 )}
               </div>
-              <FilterPanel filters={filters} onChange={handleChange} onReset={handleReset} activeCount={activeCount} />
+              <FilterPanel
+                filters={filters}
+                onChange={handleChange}
+                onReset={handleReset}
+                activeCount={activeCount}
+                userLocation={userLocation}
+                onRequestLocation={() => setLocationPickerOpen(true)}
+              />
             </div>
           </aside>
 
@@ -878,7 +878,15 @@ export default function SearchPage() {
 
       {/* Mobile filter sheet */}
       <Sheet open={mobileFilterOpen} onClose={() => setMobileFilterOpen(false)} title="Bộ lọc tìm kiếm">
-        <FilterPanel filters={filters} onChange={handleChange} onReset={handleReset} activeCount={activeCount} compact />
+        <FilterPanel
+          filters={filters}
+          onChange={handleChange}
+          onReset={handleReset}
+          activeCount={activeCount}
+          compact
+          userLocation={userLocation}
+          onRequestLocation={() => setLocationPickerOpen(true)}
+        />
         <div className="mt-5 space-y-2 border-t pt-4">
           <div className="flex items-center gap-2">
             <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -896,6 +904,13 @@ export default function SearchPage() {
 
       {/* Wizard */}
       <RoomFinderWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
+
+      {/* LocationPickerDialog — dùng cho filter bán kính */}
+      <LocationPickerDialog
+        open={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        onSelect={(coords) => setUserLocation(coords)}
+      />
     </div>
   )
 }

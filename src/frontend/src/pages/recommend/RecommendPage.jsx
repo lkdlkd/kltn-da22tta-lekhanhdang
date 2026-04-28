@@ -1,36 +1,27 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
-import {
-  Sparkles, MapPin, Loader2, RotateCcw, RefreshCw, Eye, X,
-} from 'lucide-react'
+import { Sparkles, MapPin, RotateCcw, RefreshCw, LogIn, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Separator } from '@/components/ui/separator'
 import { RoomCard } from '@/components/rooms/RoomCard'
+import { LocationPickerDialog } from '@/components/common/LocationPickerDialog'
 import { cn } from '@/lib/utils'
 import { selectIsAuthenticated } from '@/features/auth/authSlice'
 import { forYouApi, wizardRecommendApi } from '@/services/recommendService'
 
-
-// ── Distance helpers ──────────────────────────────────────────────────────────
+// ── Distance helpers ───────────────────────────────────────────────────────────
 function haversineKm(lat1, lng1, lat2, lng2) {
-  const R    = 6371
+  const R = 6371
   const dLat = ((lat2 - lat1) * Math.PI) / 180
   const dLng = ((lng2 - lng1) * Math.PI) / 180
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) ** 2
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
   return R * 2 * Math.asin(Math.sqrt(a))
-}
-
-function formatDistance(km) {
-  if (km == null) return null
-  if (km < 1) return `${Math.round(km * 1000)} m`
-  return `${Math.round(km * 10) / 10} km`
 }
 
 function getRoomDistanceText(room, userLat, userLng) {
@@ -38,16 +29,17 @@ function getRoomDistanceText(room, userLat, userLng) {
   const coords = room?.location?.coordinates
   if (!coords || coords.length < 2) return null
   const [lng, lat] = coords
-  return formatDistance(haversineKm(userLat, userLng, lat, lng))
+  const km = haversineKm(userLat, userLng, lat, lng)
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${Math.round(km * 10) / 10} km`
 }
 
-// ── Skeleton Grid ─────────────────────────────────────────────────────────────
+// ── Skeleton ───────────────────────────────────────────────────────────────────
 function SkeletonGrid() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="rounded-2xl border overflow-hidden">
-          <Skeleton className="aspect-[16/10] w-full" />
+        <div key={i} className="rounded-xl border overflow-hidden">
+          <Skeleton className="aspect-[16/10] w-full rounded-none" />
           <div className="p-4 space-y-2.5">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
@@ -59,23 +51,21 @@ function SkeletonGrid() {
   )
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// ── Main Page ──────────────────────────────────────────────────────────────────
 export default function RecommendPage() {
   const isAuth = useSelector(selectIsAuthenticated)
 
   const [loading, setLoading]   = useState(true)
   const [rooms, setRooms]       = useState([])
-  const [locating, setLocating] = useState(false)
-  const [displayGps, setDisplayGps] = useState(null) // GPS ẩn — chỉ hiển thị khoảng cách
-  const [apiGps, setApiGps]     = useState(null)     // GPS gửi API — chỉ khi user bấm "Gần tôi"
+  const [displayGps, setDisplayGps] = useState(null)
+  const [apiGps, setApiGps]     = useState(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
-
+  // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchForYou = useCallback(async (location = null) => {
     setLoading(true)
     try {
-      const payload = { limit: 12, ...(location ?? {}) }
-      const res = await forYouApi(payload)
+      const res = await forYouApi({ limit: 12, ...(location ?? {}) })
       setRooms(res.data?.data?.rooms || [])
     } catch { toast.error('Không tải được gợi ý'); setRooms([]) }
     finally { setLoading(false) }
@@ -84,8 +74,7 @@ export default function RecommendPage() {
   const fetchTopForGuest = useCallback(async (location = null) => {
     setLoading(true)
     try {
-      const payload = { limit: 12, ...(location ?? {}) }
-      const res = await wizardRecommendApi(payload)
+      const res = await wizardRecommendApi({ limit: 12, ...(location ?? {}) })
       setRooms(res.data?.data?.rooms || [])
     } catch { toast.error('Không tải được gợi ý'); setRooms([]) }
     finally { setLoading(false) }
@@ -98,34 +87,12 @@ export default function RecommendPage() {
 
   useEffect(() => { doFetch(null) }, [isAuth]) // eslint-disable-line
 
-  // ── GPS ───────────────────────────────────────────────────────────────────
-
-  const requestGPS = () => {
-    if (!navigator.geolocation) {
-      toast.error('Trình duyệt không hỗ trợ GPS. Vui lòng dùng Chrome / Firefox / Safari.')
-      return
-    }
-    setLocating(true)
-
-    const onSuccess = (pos) => {
-      const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-      setApiGps(coords)
-      setDisplayGps(coords)
-      setLocating(false)
-      doFetch(coords)
-    }
-
-    const onError = (err) => {
-      setLocating(false)
-      if (err.code === 1) toast.error('Bạn đã từ chối GPS.')
-      else if (err.code === 2) toast.error('Không xác định được vị trí.')
-      else if (err.code === 3) toast.error('Hết thời gian lấy GPS.')
-      else toast.error('Không lấy được vị trí.')
-    }
-
-    navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-      enableHighAccuracy: true, timeout: 15000, maximumAge: 0,
-    })
+  // ── Location select ────────────────────────────────────────────────────────
+  const handleLocationSelect = (coords) => {
+    setApiGps(coords)
+    setDisplayGps(coords)
+    doFetch(coords)
+    toast.success('Đã cập nhật vị trí')
   }
 
   const clearGPS = () => {
@@ -133,32 +100,28 @@ export default function RecommendPage() {
     doFetch(null)
   }
 
+  // ── Label ──────────────────────────────────────────────────────────────────
   const sourceLabel = apiGps
-    ? '📍 Phòng gần bạn nhất'
-    : isAuth
-      ? '✨ Gợi ý dành riêng cho bạn'
-      : '🔥 Phổ biến nhất hôm nay'
+    ? 'Phòng gần bạn nhất'
+    : isAuth ? 'Gợi ý dành riêng cho bạn' : 'Phổ biến nhất hôm nay'
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-5xl px-4 py-8 space-y-6">
 
-        {/* ── Header ── */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white shadow-md shrink-0">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-extrabold tracking-tight leading-tight sm:text-2xl">Gợi ý cho bạn</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {isAuth ? 'Cá nhân hóa theo thói quen xem phòng của bạn' : 'Đăng nhập để nhận gợi ý riêng theo sở thích'}
-              </p>
-            </div>
+        {/* ── Page Header ── */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Gợi ý cho bạn</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isAuth
+                ? 'Cá nhân hóa theo thói quen xem phòng của bạn'
+                : 'Đăng nhập để nhận gợi ý riêng theo sở thích'}
+            </p>
           </div>
           <Button
             size="sm" variant="outline"
-            className="gap-1.5 h-8 shrink-0"
+            className="gap-1.5"
             onClick={() => doFetch(apiGps)}
             disabled={loading}
           >
@@ -167,55 +130,59 @@ export default function RecommendPage() {
           </Button>
         </div>
 
-        {/* ── Guest CTA ── */}
+        <Separator />
+
+        {/* ── Guest banner ── */}
         {!isAuth && (
-          <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 flex items-center gap-3">
-            <Eye className="h-4 w-4 text-primary shrink-0" />
-            <p className="text-sm text-muted-foreground flex-1 min-w-0">
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3">
+            <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" />
+            <p className="text-sm text-muted-foreground flex-1">
               Đăng nhập để hệ thống học theo phòng bạn đã xem và yêu thích.
             </p>
-            <Button asChild size="sm" className="shrink-0 gap-1.5 h-8">
-              <Link to="/login"><Sparkles className="h-3.5 w-3.5" /> Đăng nhập</Link>
+            <Button asChild size="sm" variant="outline" className="shrink-0 gap-1.5">
+              <Link to="/login"><LogIn className="h-3.5 w-3.5" /> Đăng nhập</Link>
             </Button>
           </div>
         )}
 
         {/* ── Location bar ── */}
-        <div className={cn(
-          'rounded-xl border px-4 py-3 flex flex-wrap items-center gap-3 transition-colors',
-          apiGps ? 'bg-primary/5 border-primary/25' : 'bg-card'
-        )}>
-          <span className="text-sm font-medium text-muted-foreground shrink-0">📍 Vị trí</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-4 py-3">
+          <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium text-muted-foreground">Vị trí</span>
 
-          {!apiGps ? (
-            <Button
-              size="sm" variant="outline"
-              className="gap-2 h-8 border-primary/40 text-primary hover:bg-primary/5"
-              onClick={requestGPS}
-              disabled={locating}
-            >
-              {locating
-                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang lấy vị trí...</>
-                : <><MapPin className="h-3.5 w-3.5" /> Gần tôi</>}
-            </Button>
-          ) : (
+          {apiGps ? (
             <>
-              <Badge variant="secondary" className="gap-1.5 font-medium">
+              <Badge variant="secondary" className="gap-1.5 ml-1">
                 <MapPin className="h-3 w-3 text-primary" />
-                Đã bật — ưu tiên phòng gần nhất
+                Đang dùng vị trí — ưu tiên phòng gần nhất
               </Badge>
               <Button
                 size="sm" variant="ghost"
-                className="gap-1.5 h-7 text-xs text-muted-foreground ml-auto hover:text-destructive"
+                className="gap-1 h-7 text-xs ml-auto text-muted-foreground hover:text-destructive"
                 onClick={clearGPS}
               >
-                <X className="h-3 w-3" /> Tắt GPS
+                <X className="h-3 w-3" /> Xoá vị trí
+              </Button>
+              <Button
+                size="sm" variant="outline"
+                className="gap-1 h-7 text-xs"
+                onClick={() => setPickerOpen(true)}
+              >
+                <MapPin className="h-3 w-3" /> Đổi vị trí
               </Button>
             </>
+          ) : (
+            <Button
+              size="sm" variant="outline"
+              className="gap-1.5 ml-auto"
+              onClick={() => setPickerOpen(true)}
+            >
+              <MapPin className="h-3.5 w-3.5" /> Bật vị trí — xem phòng gần bạn
+            </Button>
           )}
         </div>
 
-        {/* ── Results label ── */}
+        {/* ── Results header ── */}
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold">{sourceLabel}</p>
           {!loading && rooms.length > 0 && (
@@ -228,24 +195,24 @@ export default function RecommendPage() {
           <SkeletonGrid />
         ) : rooms.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-20 rounded-xl border border-dashed">
-            <span className="text-5xl">{apiGps ? '📍' : '🏠'}</span>
-            <div className="text-center space-y-1 max-w-xs">
-              <p className="text-sm font-medium">
+            <span className="text-4xl">{apiGps ? '📍' : '🏠'}</span>
+            <div className="text-center space-y-1.5 max-w-xs">
+              <p className="text-sm font-semibold">
                 {apiGps ? 'Không có phòng nào gần bạn' : 'Chưa có gợi ý phù hợp'}
               </p>
               <p className="text-xs text-muted-foreground">
                 {apiGps
-                  ? 'Thử tắt GPS để xem gợi ý theo sở thích của bạn.'
+                  ? 'Thử xoá vị trí để xem gợi ý theo sở thích.'
                   : 'Hãy xem thêm một vài phòng để hệ thống học sở thích của bạn.'}
               </p>
             </div>
             {apiGps && (
               <Button size="sm" onClick={clearGPS} variant="outline" className="gap-1.5">
-                <RotateCcw className="h-3.5 w-3.5" /> Tắt GPS
+                <RotateCcw className="h-3.5 w-3.5" /> Xoá vị trí
               </Button>
             )}
           </div>
-        ) : rooms !== null ? (
+        ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {rooms.map(r => (
               <RoomCard
@@ -255,9 +222,16 @@ export default function RecommendPage() {
               />
             ))}
           </div>
-        ) : null}
+        )}
 
       </div>
+
+      {/* ── Location picker dialog ── */}
+      <LocationPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handleLocationSelect}
+      />
     </div>
   )
 }

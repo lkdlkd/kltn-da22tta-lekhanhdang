@@ -32,6 +32,7 @@ import { CompareButton } from '@/components/compare/CompareBar'
 import { PanoramaViewer } from '@/components/rooms/PanoramaViewer'
 import { SimilarRooms } from '@/components/rooms/SimilarRooms'
 import { cn } from '@/lib/utils'
+import { LocationPickerDialog } from '@/components/common/LocationPickerDialog'
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const ROOM_TYPE_LABELS = {
@@ -190,8 +191,8 @@ export default function RoomDetailPage() {
   const [activeTab, setActiveTab] = useState('info')
   const [userLocation, setUserLocation] = useState(null)
   const [distanceText, setDistanceText] = useState('')
-  const [gpsBlocked, setGpsBlocked]     = useState(false)  // user tắt GPS trong browser
-  const [gpsError, setGpsError]         = useState(false)  // lỗi khác (timeout/unavailable)
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false)
+  const afterPickRef = useRef(null)
   const [routePositions, setRoutePositions] = useState([])
   const [routeSummary, setRouteSummary] = useState('')
   const [routing, setRouting] = useState(false)
@@ -217,36 +218,27 @@ export default function RoomDetailPage() {
       .finally(() => setLoading(false))
   }, [slug])
 
-  // GPS — chỉ gọi khi user click (để Safari iOS cho phép popup xin quyền)
-  const requestUserLocation = () => {
-    if (!room?.location?.coordinates) return
-    const [roomLng, roomLat] = room.location.coordinates
+  // Mở dialog chọn vị trí; callback(coords) chạy sau khi user xác nhận
+  const openLocationPicker = (callback = null) => {
+    afterPickRef.current = callback
+    setLocationPickerOpen(true)
+  }
 
-    if (!navigator.geolocation) {
-      setGpsBlocked(true); return
+  const handleLocationPicked = (coords) => {
+    setUserLocation(coords)
+    if (room?.location?.coordinates) {
+      const [roomLng, roomLat] = room.location.coordinates
+      const R = 6371
+      const dLat = ((roomLat - coords.lat) * Math.PI) / 180
+      const dLng = ((roomLng - coords.lng) * Math.PI) / 180
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos((coords.lat * Math.PI) / 180) * Math.cos((roomLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+      const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
+      setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
     }
-
-    setGpsError(false); setGpsBlocked(false)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords
-        setUserLocation({ lat, lng })
-        setGpsBlocked(false); setGpsError(false)
-        const R = 6371
-        const dLat = ((roomLat - lat) * Math.PI) / 180
-        const dLng = ((roomLng - lng) * Math.PI) / 180
-        const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat * Math.PI) / 180) * Math.cos((roomLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
-        const km = R * 2 * Math.asin(Math.sqrt(Math.min(1, a)))
-        setDistanceText(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`)
-      },
-      (err) => {
-        if (err.code === 1) setGpsBlocked(true)
-        else if (err.code === 2) setGpsError(true)
-        else if (err.code === 3) setGpsError(true)
-        else setGpsError(true)
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-    )
+    if (afterPickRef.current) {
+      afterPickRef.current(coords)
+      afterPickRef.current = null
+    }
   }
 
   useEffect(() => { setImgIdx(0) }, [room?.slug])
@@ -308,32 +300,8 @@ export default function RoomDetailPage() {
     }
 
     if (userLocation) { doRoute(userLocation); return }
-
-    if (!navigator.geolocation) {
-      toast.error('Trình duyệt không hỗ trợ GPS')
-      return
-    }
-
-    setRouting(true)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        setUserLocation(loc)
-        setGpsBlocked(false); setGpsError(false)
-        doRoute(loc)
-      },
-      (err) => {
-        setRouting(false)
-        if (err.code === err.PERMISSION_DENIED) {
-          setGpsBlocked(true)
-          toast.error('Địa điểm bị tắt. Mở Cài đặt → Trình duyệt → Quyền vị trí để bật.')
-        } else {
-          setGpsError(true)
-          toast.error('Không lấy được vị trí. Kiểm tra kết nối mạng và GPS thiết bị.')
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    )
+    // Chưa có vị trí — mở dialog để chọn, sau đó tự động chỉ đường
+    openLocationPicker((loc) => doRoute(loc))
   }
 
   const goImg = (dir) => setImgIdx((i) => (i + dir + imgs.length) % imgs.length)
@@ -527,12 +495,12 @@ export default function RoomDetailPage() {
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge variant="secondary">{ROOM_TYPE_LABELS[room.roomType] || 'Phòng trọ'}</Badge>
               {distanceText ? (
-                <Badge variant="outline" className="gap-1 cursor-pointer" onClick={requestUserLocation}>
+                <Badge variant="outline" className="gap-1 cursor-pointer" onClick={() => openLocationPicker()}>
                   <MapPin className="h-2.5 w-2.5" />{distanceText}
                 </Badge>
-              ) : !gpsBlocked && (
+              ) : (
                 <button
-                  onClick={requestUserLocation}
+                  onClick={() => openLocationPicker()}
                   className="inline-flex items-center gap-1 rounded-full border border-dashed border-primary/40 px-2 py-0.5 text-[11px] text-primary hover:bg-primary/5 transition-colors"
                 >
                   <MapPin className="h-2.5 w-2.5" /> Bật vị trí
@@ -548,48 +516,16 @@ export default function RoomDetailPage() {
             )}
           </div>
 
-          {/* GPS hints */}
-          {gpsBlocked && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs dark:border-amber-800 dark:bg-amber-950/40">
-              <span className="text-base leading-none mt-0.5">📍</span>
-              <div className="space-y-1.5">
-                <p className="font-semibold text-amber-800 dark:text-amber-300">Quyền vị trí bị tắt hoặc đã từng từ chối</p>
-                <p className="text-amber-700 dark:text-amber-400">
-                  Safari ghi nhớ việc từ chối theo từng trang web và sẽ không hỏi lại. Để đặt lại:
-                </p>
-                <ul className="space-y-1 text-amber-700 dark:text-amber-400 list-disc list-inside">
-                  <li>
-                    <span className="font-medium">Safari iOS — Cách 1:</span>{' '}
-                    Cài đặt → Quyền riêng tư → Dịch vụ vị trí → Safari Websites → <span className="font-medium">Hỏi hoặc Cho phép</span>
-                  </li>
-                  <li>
-                    <span className="font-medium">Safari iOS — Cách 2:</span>{' '}
-                    Cài đặt → Safari → Nâng cao → Dữ liệu trang web → Xóa dữ liệu của trang này
-                  </li>
-                  <li>
-                    <span className="font-medium">Chrome Android/iOS:</span>{' '}
-                    Thanh địa chỉ → 🔒 → Vị trí → Cho phép
-                  </li>
-                  <li>
-                    <span className="font-medium">Firefox:</span>{' '}
-                    Thanh địa chỉ → 🗡️ → Vị trí → Cho phép
-                  </li>
-                </ul>
-                <p className="text-amber-600 dark:text-amber-500 italic">
-                  Sau khi cấp quyền, nhấn nút “Bật vị trí” ở trên để xem khoảng cách.
-                </p>
-              </div>
-            </div>
-          )}
-          {gpsError && !gpsBlocked && (
-            <div className="flex items-center gap-2.5 rounded-xl border border-muted px-3.5 py-2.5 text-xs">
-              <span className="text-base">🛰️</span>
-              <p className="text-muted-foreground flex-1">Không lấy được vị trí. Kiểm tra GPS thiết bị hoặc kết nối mạng.</p>
+          {/* Location hint — hiển thị khi chưa bật vị trí */}
+          {!userLocation && (
+            <div className="flex items-center gap-2.5 rounded-xl border border-dashed px-3.5 py-2.5 text-xs">
+              <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <p className="text-muted-foreground flex-1">Bật vị trí để xem khoảng cách và chỉ đường đến phòng.</p>
               <button
-                onClick={requestUserLocation}
-                className="shrink-0 rounded-lg border px-2.5 py-1 font-medium hover:bg-muted transition-colors"
+                onClick={() => openLocationPicker()}
+                className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
               >
-                Thử lại
+                Chọn vị trí
               </button>
             </div>
           )}
@@ -629,7 +565,7 @@ export default function RoomDetailPage() {
                 </CardHeader>
                 <CardContent className="px-4 pb-4">
                   <p className="text-sm text-muted-foreground leading-6 whitespace-pre-line">
-                    {room.description || 'Chưa có mô tả.'}
+                    {room.description || 'Chưa có mô ntả.'}
                   </p>
                 </CardContent>
               </Card>
@@ -684,7 +620,7 @@ export default function RoomDetailPage() {
                     <p className="text-sm font-medium">
                       {userPos ? 'Vị trí bạn và phòng trọ' : 'Bản đồ phòng trọ'}
                     </p>
-                    {!userPos && <p className="text-xs text-muted-foreground">Bật GPS để xem khoảng cách</p>}
+                    {!userPos && <p className="text-xs text-muted-foreground">Bật vị trí để xem khoảng cách và chỉ đường</p>}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5">
@@ -727,13 +663,21 @@ export default function RoomDetailPage() {
                   </div>
                 )}
 
-                {userPos && roomPosition && (
-                  <div className="border-t px-4 py-3">
-                    <Button variant="outline" size="sm" className="gap-2 w-full sm:w-auto"
-                      onClick={handleDirections} disabled={routing}>
-                      <Navigation className="h-3.5 w-3.5" />
-                      {routing ? 'Đang tìm lộ trình...' : 'Chỉ đường đến phòng'}
-                    </Button>
+                {roomPosition && (
+                  <div className="border-t px-4 py-3 flex flex-wrap gap-2">
+                    {!userPos && (
+                      <Button variant="outline" size="sm" className="gap-2"
+                        onClick={() => openLocationPicker()}>
+                        <MapPin className="h-3.5 w-3.5" /> Bật vị trí của bạn
+                      </Button>
+                    )}
+                    {userPos && (
+                      <Button variant="outline" size="sm" className="gap-2"
+                        onClick={handleDirections} disabled={routing}>
+                        <Navigation className="h-3.5 w-3.5" />
+                        {routing ? 'Đang tìm lộ trình...' : 'Chỉ đường đến phòng'}
+                      </Button>
+                    )}
                   </div>
                 )}
               </Card>
@@ -967,6 +911,11 @@ export default function RoomDetailPage() {
 
       {/* ── OVERLAYS ──────────────────────────────────────────────────── */}
       <BookingDialog open={bookingOpen} onClose={() => setBookingOpen(false)} roomId={room?._id} roomTitle={room?.title} />
+      <LocationPickerDialog
+        open={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        onSelect={handleLocationPicked}
+      />
       {panoramaSrc && <PanoramaViewer src={panoramaSrc} onClose={() => setPanoramaSrc(null)} />}
       {lightboxIdx !== null && imgs.length > 0 && (
         <ImageLightbox images={imgs} startIndex={lightboxIdx} onClose={() => setLightboxIdx(null)} />

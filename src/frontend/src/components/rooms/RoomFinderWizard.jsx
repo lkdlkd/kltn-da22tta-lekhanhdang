@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { wizardRecommendApi } from '@/services/recommendService'
 import { WizardResultsSheet } from './WizardResultsSheet'
+import { LocationPickerDialog } from '@/components/common/LocationPickerDialog'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TOTAL_STEPS = 5
@@ -170,16 +171,7 @@ function Step4({ answers, set }) {
 }
 
 function Step5({ answers, set }) {
-  const [locating, setLocating] = useState(false)
-
-  const getLocation = () => {
-    if (!navigator.geolocation) { toast.error('Trình duyệt không hỗ trợ GPS'); return }
-    setLocating(true)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => { set('lat', pos.coords.latitude); set('lng', pos.coords.longitude); setLocating(false) },
-      ()    => { toast.error('Không lấy được vị trí'); setLocating(false) }
-    )
-  }
+  const [locPickerOpen, setLocPickerOpen] = useState(false)
 
   return (
     <div className="space-y-5">
@@ -189,17 +181,21 @@ function Step5({ answers, set }) {
           type="button"
           variant={answers.lat ? 'default' : 'outline'}
           className="gap-2 w-full sm:w-auto"
-          onClick={getLocation}
-          disabled={locating}
+          onClick={() => setLocPickerOpen(true)}
         >
-          {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-          {answers.lat ? '✅ Đã lấy vị trí của bạn' : 'Dùng vị trí của tôi (GPS)'}
+          <MapPin className="h-4 w-4" />
+          {answers.lat ? '✅ Đã chọn vị trí của bạn' : 'Chọn vị trí của tôi'}
         </Button>
         {answers.lat && (
           <p className="text-xs text-muted-foreground">
             ({answers.lat.toFixed(4)}, {answers.lng.toFixed(4)})
           </p>
         )}
+        <LocationPickerDialog
+          open={locPickerOpen}
+          onClose={() => setLocPickerOpen(false)}
+          onSelect={(coords) => { set('lat', coords.lat); set('lng', coords.lng) }}
+        />
       </div>
 
       <div className="space-y-2">

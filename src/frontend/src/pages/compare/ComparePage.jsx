@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { LocationPickerDialog } from '@/components/common/LocationPickerDialog'
 
 const amenityConfig = {
   wifi: { label: 'Wifi', icon: Wifi },
@@ -57,20 +58,7 @@ export default function ComparePage() {
   const [rooms, setRooms] = useState([])
   const [loading, setLoading] = useState(false)
   const [userLocation, setUserLocation] = useState(null)
-
-  // GPS — chỉ gọi khi user click (Safari iOS yêu cầu user gesture)
-  const requestGps = () => {
-    if (!navigator.geolocation) { toast.error('Trình duyệt không hỗ trợ GPS'); return }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => setUserLocation({ lat: coords.latitude, lng: coords.longitude }),
-      (err) => {
-        if (err.code === 1) toast.error('Quyền vị trí bị tắt. Cấp quyền trong cài đặt trình duyệt.')
-        else if (err.code === 2) toast.error('Không xác định được vị trí.')
-        else if (err.code === 3) toast.error('Hết thời gian lấy GPS. Thử lại.')
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-    )
-  }
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false)
 
   useEffect(() => {
     if (compareList.length < 2) return
@@ -113,13 +101,16 @@ export default function ComparePage() {
         </div>
         <div className="flex items-center gap-2">
           {!userLocation ? (
-            <Button variant="outline" size="sm" onClick={requestGps} className="gap-1.5 text-xs">
+            <Button variant="outline" size="sm" onClick={() => setLocationPickerOpen(true)} className="gap-1.5 text-xs">
               <MapPin className="h-3.5 w-3.5" /> Bật vị trí
             </Button>
           ) : (
-            <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
-              <MapPin className="h-3.5 w-3.5" /> Đang hiển thị khoảng cách
-            </span>
+            <button
+              onClick={() => setLocationPickerOpen(true)}
+              className="flex items-center gap-1 text-xs text-emerald-600 font-medium hover:text-emerald-700 transition-colors"
+            >
+              <MapPin className="h-3.5 w-3.5" /> Đang hiển thị khoảng cách · Đổi vị trí
+            </button>
           )}
           <Button variant="outline" size="sm" onClick={() => { clearRooms(); navigate('/search') }}>
             <X className="h-4 w-4" /> Xoá tất cả
@@ -262,6 +253,12 @@ export default function ComparePage() {
           </tbody>
         </table>
       </div>
+
+      <LocationPickerDialog
+        open={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        onSelect={(coords) => { setUserLocation(coords); toast.success('Đã cập nhật vị trí') }}
+      />
     </div>
   )
 }
