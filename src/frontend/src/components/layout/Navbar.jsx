@@ -18,21 +18,21 @@ import { cn } from '@/lib/utils'
 
 // ── Navigation config ─────────────────────────────────────────────────────────
 const NAV_LINKS = [
-  { to: '/',          label: 'Trang chủ',        exact: true },
-  { to: '/search',    label: 'Tìm phòng',       icon: Search },
-  { to: '/recommend', label: 'Gợi ý cho bạn',  icon: Sparkles, highlight: true },
+  { to: '/', label: 'Trang chủ', exact: true },
+  { to: '/search', label: 'Tìm phòng', icon: Search },
+  { to: '/recommend', label: 'Gợi ý cho bạn', icon: Sparkles, highlight: true },
 ]
 
 const LANDLORD_MENU = [
-  { to: '/landlord/dashboard',    icon: LayoutDashboard, label: 'Tổng quan' },
-  { to: '/landlord/rooms',        icon: Building2,       label: 'Quản lý phòng' },
-  { to: '/landlord/appointments', icon: Calendar,        label: 'Lịch hẹn' },
+  { to: '/landlord/dashboard', icon: LayoutDashboard, label: 'Tổng quan' },
+  { to: '/landlord/rooms', icon: Building2, label: 'Quản lý phòng' },
+  { to: '/landlord/appointments', icon: Calendar, label: 'Lịch hẹn' },
 ]
 
 const ROLE_LABEL = {
-  student:  { text: 'Sinh viên', cls: 'text-blue-600 dark:text-blue-400' },
-  landlord: { text: 'Chủ trọ',   cls: 'text-emerald-600 dark:text-emerald-400' },
-  admin:    { text: 'Quản trị viên', cls: 'text-orange-600 dark:text-orange-400' },
+  student: { text: 'Sinh viên', cls: 'text-blue-600 dark:text-blue-400' },
+  landlord: { text: 'Chủ trọ', cls: 'text-emerald-600 dark:text-emerald-400' },
+  admin: { text: 'Quản trị viên', cls: 'text-orange-600 dark:text-orange-400' },
 }
 
 // ── Landlord "Quản lý" dropdown ───────────────────────────────────────────────
@@ -261,8 +261,8 @@ export function Navbar() {
                 {user?.avatar
                   ? <img src={user.avatar} className="h-6 w-6 rounded-full object-cover shrink-0" alt="" />
                   : <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-primary text-[11px] font-bold shrink-0">
-                      {(user?.name || 'U')[0].toUpperCase()}
-                    </div>
+                    {(user?.name || 'U')[0].toUpperCase()}
+                  </div>
                 }
                 <span className="text-xs font-medium max-w-[72px] truncate">
                   {user?.name?.split(' ').pop() || 'Tôi'}
@@ -349,8 +349,8 @@ export function Navbar() {
                   {user?.avatar
                     ? <img src={user.avatar} className="h-9 w-9 rounded-full object-cover shrink-0" alt="" />
                     : <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-primary text-base font-bold shrink-0">
-                        {(user?.name || 'U')[0].toUpperCase()}
-                      </div>
+                      {(user?.name || 'U')[0].toUpperCase()}
+                    </div>
                   }
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate">{user?.name || 'Tài khoản'}</p>
@@ -363,14 +363,16 @@ export function Navbar() {
                 {/* Quick links grid */}
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   {[
-                    { to: '/favorites',    icon: Heart,    label: 'Yêu thích' },
+                    { to: '/favorites', icon: Heart, label: 'Yêu thích' },
                     { to: '/appointments', icon: Calendar, label: 'Lịch hẹn' },
-                    { to: '/messages',     icon: MessageCircle, label: 'Tin nhắn',
-                      badge: unreadMsgs > 0 ? unreadMsgs : null },
+                    {
+                      to: '/messages', icon: MessageCircle, label: 'Tin nhắn',
+                      badge: unreadMsgs > 0 ? unreadMsgs : null
+                    },
                     ...(user?.role === 'landlord' ? [
-                      { to: '/landlord/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
-                      { to: '/landlord/rooms',        icon: Building2,       label: 'Phòng trọ' },
-                      { to: '/landlord/appointments', icon: Calendar,        label: 'QL lịch hẹn' },
+                      { to: '/landlord/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+                      { to: '/landlord/rooms', icon: Building2, label: 'Phòng trọ' },
+                      { to: '/landlord/appointments', icon: Calendar, label: 'QL lịch hẹn' },
                     ] : []),
                     ...(user?.role === 'admin' ? [
                       { to: '/admin', icon: Shield, label: 'Admin' },

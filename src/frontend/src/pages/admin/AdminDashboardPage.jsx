@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Home, Users, Clock, Star, TrendingUp, Eye,
+  Home, Users, Clock, MessageSquare, TrendingUp, Eye,
   ArrowRight, Activity, CheckCircle, Flag,
   BarChart2, AlertCircle,
 } from 'lucide-react'
@@ -43,13 +43,13 @@ const STAT_CONFIGS = [
     desc: 'Tổng tài khoản đã đăng ký',
   },
   {
-    key: 'pendingReviews',
-    label: 'Đánh giá chờ',
-    icon: Star,
+    key: 'pendingComments',
+    label: 'Bình luận chờ',
+    icon: MessageSquare,
     iconCls: 'text-emerald-600 dark:text-emerald-400',
     iconBg: 'bg-emerald-50 dark:bg-emerald-900/20',
-    href: '/admin/reviews',
-    desc: 'Đánh giá chờ kiểm duyệt',
+    href: '/admin/comments',
+    desc: 'Bình luận chờ kiểm duyệt',
   },
 ]
 
@@ -260,7 +260,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent className="p-3 space-y-2">
               <QuickLink to="/admin/rooms" icon={CheckCircle} label="Duyệt phòng" desc="Xem danh sách chờ duyệt" badge={stats?.pendingRooms} />
-              <QuickLink to="/admin/reviews" icon={Star} label="Duyệt đánh giá" desc="Kiểm duyệt review của người dùng" badge={stats?.pendingReviews} />
+              <QuickLink to="/admin/comments" icon={MessageSquare} label="Duyệt bình luận" desc="Kiểm duyệt comment của người dùng" badge={stats?.pendingComments} />
               <QuickLink to="/admin/reports" icon={Flag} label="Báo cáo vi phạm" desc="Xem và xử lý tố cáo" />
               <QuickLink to="/admin/users" icon={Users} label="Người dùng" desc="Quản lý tài khoản" />
             </CardContent>

@@ -34,11 +34,11 @@ function RoomCardSkeleton() {
 // ── Data ──────────────────────────────────────────────────────────────────────
 const QUICK_FILTERS = [
   { emoji: '💰', label: 'Dưới 2 triệu', href: '/search?maxPrice=2000000' },
-  { emoji: '📶', label: 'Có Wifi',       href: '/search?amenities=["wifi"]' },
-  { emoji: '✅', label: 'Còn trống',     href: '/search?isAvailable=true' },
+  { emoji: '📶', label: 'Có Wifi', href: '/search?amenities=["wifi"]' },
+  { emoji: '✅', label: 'Còn trống', href: '/search?isAvailable=true' },
   { emoji: '🏢', label: 'Chung cư mini', href: '/search?roomType=chung_cư_mini' },
-  { emoji: '🏫', label: 'Ký túc xá',     href: '/search?roomType=ký_túc_xá' },
-  { emoji: '❄️', label: 'Có điều hòa',   href: '/search?amenities=["điều_hòa"]' },
+  { emoji: '🏫', label: 'Ký túc xá', href: '/search?roomType=ký_túc_xá' },
+  { emoji: '❄️', label: 'Có điều hòa', href: '/search?amenities=["điều_hòa"]' },
 ]
 
 const FEATURES = [
@@ -66,7 +66,7 @@ const FEATURES = [
 
 const STATS = [
   { val: '200+', label: 'Phòng đang đăng' },
-  { val: 'AI',   label: 'Gợi ý thông minh' },
+  { val: 'AI', label: 'Gợi ý thông minh' },
   { val: '360°', label: 'Xem thực tế ảo' },
 ]
 

@@ -1,17 +1,101 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PhòngTrọ VL — Hệ thống Gợi ý Phòng trọ Sinh viên Vĩnh Long</title>
-    <meta name="description" content="Tìm phòng trọ phù hợp nhất cho sinh viên tại Vĩnh Long với hệ thống gợi ý thông minh dựa trên AI." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-DPdyywAs.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DELExLlD.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ── Primary SEO ──────────────────────────────────────────────── -->
+  <title>PhòngTrọ Vĩnh Long — Tìm Phòng Trọ Sinh Viên Vĩnh Long</title>
+  <meta name="description"
+    content="Tìm phòng trọ phù hợp nhất cho sinh viên tại Vĩnh Long. Hệ thống gợi ý thông minh AI, đặt lịch xem phòng trực tuyến, bản đồ tương tác và hàng trăm phòng được kiểm duyệt." />
+  <meta name="keywords"
+    content="phòng trọ Vĩnh Long, nhà trọ sinh viên, tìm phòng trọ, thuê phòng Vĩnh Long, chung cư mini Vĩnh Long, ký túc xá, nhà trọ giá rẻ" />
+  <meta name="author" content="PhòngTrọ Vĩnh Long" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <link rel="canonical" href="https://phongtrovl.id.vn/" />
+
+  <!-- ── Open Graph (Facebook / Zalo) ────────────────────────────── -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="PhòngTrọ Vĩnh Long" />
+  <meta property="og:title" content="PhòngTrọ Vĩnh Long — Tìm Phòng Trọ Sinh Viên Vĩnh Long" />
+  <meta property="og:description"
+    content="Tìm phòng trọ phù hợp nhất cho sinh viên tại Vĩnh Long. Gợi ý AI thông minh, đặt lịch xem phòng, bản đồ tương tác." />
+  <meta property="og:url" content="https://phongtrovl.id.vn/" />
+  <meta property="og:image" content="https://phongtrovl.id.vn/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="PhòngTrọ Vĩnh Long — Hệ thống tìm phòng trọ sinh viên Vĩnh Long" />
+  <meta property="og:locale" content="vi_VN" />
+
+  <!-- ── Twitter Card ─────────────────────────────────────────────── -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="PhòngTrọ Vĩnh Long — Tìm Phòng Trọ Sinh Viên Vĩnh Long" />
+  <meta name="twitter:description"
+    content="Tìm phòng trọ phù hợp nhất cho sinh viên tại Vĩnh Long. Gợi ý AI thông minh, đặt lịch xem phòng, bản đồ tương tác." />
+  <meta name="twitter:image" content="https://phongtrovl.id.vn/og-image.png" />
+
+  <!-- ── Theme & PWA ───────────────────────────────────────────────── -->
+  <meta name="theme-color" content="#6366f1" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="PhòngTrọ Vĩnh Long" />
+
+  <!-- ── Favicon ──────────────────────────────────────────────────── -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+  <!-- ── Fonts ─────────────────────────────────────────────────────── -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="style"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- ── JSON-LD Structured Data ──────────────────────────────────── -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "PhòngTrọ Vĩnh Long",
+      "alternateName": "Phòng Trọ Vĩnh Long",
+      "url": "https://phongtrovl.id.vn/",
+      "description": "Hệ thống tìm kiếm và gợi ý phòng trọ thông minh dành cho sinh viên tại Vĩnh Long",
+      "inLanguage": "vi-VN",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://phongtrovl.id.vn/search?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "PhòngTrọ Vĩnh Long",
+      "url": "https://phongtrovl.id.vn/",
+      "logo": "https://phongtrovl.id.vn/favicon-32x32.png",
+      "description": "Nền tảng tìm kiếm phòng trọ sinh viên tại Vĩnh Long với công nghệ AI",
+      "areaServed": {
+        "@type": "City",
+        "name": "Vĩnh Long",
+        "addressCountry": "VN"
+      }
+    }
+    </script>
+  <script type="module" crossorigin src="/assets/index-CxXgdsuP.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-ZMYnzaB0.css">
+</head>
+
+<body>
+  <div id="root"></div>
+</body>
+
 </html>

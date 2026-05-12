@@ -8,7 +8,6 @@ const notificationSchema = new mongoose.Schema(
       enum: [
         'new_room', 'room_approved', 'room_rejected',
         'new_message',
-        'review_approved', 'review_rejected',
         'comment_approved', 'comment_replied',
         'system',
       ],

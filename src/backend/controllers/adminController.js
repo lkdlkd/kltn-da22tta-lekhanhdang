@@ -200,12 +200,12 @@ exports.adminUnbanUser = async (req, res) => {
 // GET /api/admin/stats
 exports.adminGetStats = async (req, res) => {
   try {
-    const Review = require('../models/Review')
-    const [totalRooms, pendingRooms, totalUsers, pendingReviews, topRooms, monthlyData] = await Promise.all([
+    const Comment = require('../models/Comment')
+    const [totalRooms, pendingRooms, totalUsers, pendingComments, topRooms, monthlyData] = await Promise.all([
       Room.countDocuments(),
       Room.countDocuments({ status: 'pending' }),
       User.countDocuments(),
-      Review.countDocuments({ status: 'pending' }),
+      Comment.countDocuments({ status: 'pending' }),
       Room.find({ status: 'approved' }).sort({ viewCount: -1 }).limit(5).select('title slug viewCount images price'),
       // 12 tháng gần nhất
       Room.aggregate([
@@ -221,7 +221,7 @@ exports.adminGetStats = async (req, res) => {
     ])
 
     return sendResponse(res, 200, true, 'Thống kê hệ thống', {
-      totalRooms, pendingRooms, totalUsers, pendingReviews, topRooms, monthlyData,
+      totalRooms, pendingRooms, totalUsers, pendingComments, topRooms, monthlyData,
     })
   } catch (error) {
     return sendResponse(res, 500, false, error.message)

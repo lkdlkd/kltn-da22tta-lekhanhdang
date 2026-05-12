@@ -19,9 +19,9 @@ const TYPE_COLORS = {
   room_approved: 'bg-emerald-500',
   room_rejected: 'bg-red-500',
   new_message: 'bg-blue-500',
-  review_approved: 'bg-yellow-500',
-  review_rejected: 'bg-orange-500',
   new_room: 'bg-violet-500',
+  comment_approved: 'bg-yellow-500',
+  comment_replied: 'bg-orange-500',
   system: 'bg-gray-500',
 }
 
