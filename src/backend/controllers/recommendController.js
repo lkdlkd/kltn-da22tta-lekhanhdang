@@ -3,6 +3,7 @@ const Favorite = require('../models/Favorite')
 const Interaction = require('../models/Interaction')
 const sendResponse = require('../utils/apiResponse')
 const { callAI } = require('../services/aiProxyService')
+const { rankSimilar, rankWizard, rankForYou } = require('../services/recommendFallbackService')
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -47,11 +48,6 @@ function attachBehavior(rooms, favMap) {
       0.4 * ((r.viewCount || 0) / maxView)
       + 0.6 * ((favMap[String(r._id)] || 0) / maxFav),
   }))
-}
-
-/** Fallback sort by viewCount when AI is unavailable */
-function fallbackSort(rooms, limit) {
-  return [...rooms].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0)).slice(0, limit)
 }
 
 /** Apply filters to MongoDB query */
@@ -176,7 +172,15 @@ exports.getSimilarRooms = async (req, res) => {
         target: serializeRoom(target), candidates: plainCandidates,
         center: { lat, lng }, radius_km: 10, limit,
       })
-    } catch { rooms = fallbackSort(plainCandidates, limit) }
+    } catch {
+      rooms = rankSimilar({
+        target: serializeRoom(target),
+        candidates: plainCandidates,
+        center: { lat, lng },
+        radiusKm: 10,
+        limit,
+      })
+    }
 
     // ── Tier 3 padding: bổ sung nếu vẫn chưa đủ limit ──────────────────────────
     if (rooms.length < limit) {
@@ -199,7 +203,15 @@ exports.getSimilarRooms = async (req, res) => {
             target: serializeRoom(target), candidates: plain3,
             center: { lat, lng }, radius_km: 999, limit: need,
           })
-        } catch { padRooms = fallbackSort(plain3, need) }
+        } catch {
+          padRooms = rankSimilar({
+            target: serializeRoom(target),
+            candidates: plain3,
+            center: { lat, lng },
+            radiusKm: 999,
+            limit: need,
+          })
+        }
         rooms = [...rooms, ...padRooms]
       }
     }
@@ -241,7 +253,14 @@ exports.wizardRecommend = async (req, res) => {
         center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
         limit: effectiveLimit,
       })
-    } catch { rooms = fallbackSort(plainCandidates, effectiveLimit) }
+    } catch {
+      rooms = rankWizard({
+        criteria,
+        candidates: plainCandidates,
+        center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
+        limit: effectiveLimit,
+      })
+    }
 
     return sendResponse(res, 200, true, `Gợi ý ${rooms.length} phòng phù hợp`, { rooms, total: rooms.length })
   } catch (err) {
@@ -338,7 +357,15 @@ exports.forYouRecommend = async (req, res) => {
         center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
         limit: effectiveLimit,
       })
-    } catch { rooms = fallbackSort(plainCandidates, effectiveLimit) }
+    } catch {
+      rooms = rankForYou({
+        criteria,
+        candidates: plainCandidates,
+        userHistory,
+        center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
+        limit: effectiveLimit,
+      })
+    }
 
     return sendResponse(res, 200, true, `Gợi ý cá nhân ${rooms.length} phòng`, {
       rooms,

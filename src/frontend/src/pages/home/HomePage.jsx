@@ -178,7 +178,12 @@ export default function HomePage() {
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
-              <Button size="lg" variant="secondary" asChild className="rounded-lg bg-white text-foreground hover:bg-white/90">
+              <Button
+                size="lg"
+                variant="secondary"
+                asChild
+                className="rounded-lg bg-white text-slate-950 hover:bg-white/90 hover:text-slate-950 dark:bg-white dark:text-slate-950 dark:hover:bg-white/90 dark:hover:text-slate-950"
+              >
                 <Link to={user ? '/recommend' : '/login'}>
                   Gợi ý cho bạn
                   <Sparkles className="h-4 w-4" />
