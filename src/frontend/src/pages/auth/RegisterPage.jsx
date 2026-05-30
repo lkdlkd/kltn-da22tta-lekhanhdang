@@ -143,70 +143,51 @@ export default function RegisterPage() {
   }
 
   const handleGoogleRegister = () => {
+    if (!window.google?.accounts?.oauth2) {
+      toast.error('Dịch vụ liên kết Google đang được tải, vui lòng thử lại sau vài giây!')
+      return
+    }
+
     setGoogleLoading(true)
     setApiError('')
 
-    const initializeAndLogin = () => {
-      const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        scope: 'openid email profile',
-        callback: async (tokenResponse) => {
-          if (tokenResponse && tokenResponse.access_token) {
-            try {
-              const res = await googleLoginApi({ accessToken: tokenResponse.access_token })
-              const { token, user } = res.data.data
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      scope: 'openid email profile',
+      callback: async (tokenResponse) => {
+        if (tokenResponse && tokenResponse.access_token) {
+          try {
+            const res = await googleLoginApi({ accessToken: tokenResponse.access_token })
+            const { token, user } = res.data.data
 
-              if (user.role === 'unassigned') {
-                setRegisteredUser(user)
-                setGoogleTokenVal(token)
-                setStep('select-role')
-              } else {
-                dispatch(loginSuccess({ token, user }))
-                toast.success(`Chào mừng ${user.name}!`)
-                navigate('/', { replace: true })
-              }
-            } catch (err) {
-              const message = err.response?.data?.message || 'Đăng nhập Google thất bại'
-              setApiError(message)
-              toast.error(message)
-            } finally {
-              setGoogleLoading(false)
+            if (user.role === 'unassigned') {
+              setRegisteredUser(user)
+              setGoogleTokenVal(token)
+              setStep('select-role')
+            } else {
+              dispatch(loginSuccess({ token, user }))
+              toast.success(`Chào mừng ${user.name}!`)
+              navigate('/', { replace: true })
             }
-          } else {
+          } catch (err) {
+            const message = err.response?.data?.message || 'Đăng nhập Google thất bại'
+            setApiError(message)
+            toast.error(message)
+          } finally {
             setGoogleLoading(false)
-            toast.error('Đăng nhập Google thất bại, vui lòng thử lại')
           }
-        },
-        error_callback: (err) => {
-          setGoogleLoading(false)
-          console.error(err)
-          toast.error('Có lỗi xảy ra khi kết nối Google')
-        }
-      })
-      client.requestAccessToken()
-    }
-
-    if (window.google?.accounts?.oauth2) {
-      initializeAndLogin()
-    } else {
-      const script = document.createElement('script')
-      script.src = 'https://accounts.google.com/gsi/client'
-      script.async = true
-      script.defer = true
-      script.onload = () => {
-        if (window.google?.accounts?.oauth2) {
-          initializeAndLogin()
         } else {
           setGoogleLoading(false)
-          toast.error('Không thể tải thư viện xác thực Google')
+          toast.error('Đăng nhập Google thất bại, vui lòng thử lại')
         }
-      }
-      script.onerror = () => {
+      },
+      error_callback: (err) => {
         setGoogleLoading(false)
-        toast.error('Không thể tải thư viện xác thực Google')
+        console.error(err)
+        toast.error('Có lỗi xảy ra khi kết nối Google')
       }
-      document.head.appendChild(script)
-    }
+    })
+    client.requestAccessToken()
   }
 
   if (googleLoading) {

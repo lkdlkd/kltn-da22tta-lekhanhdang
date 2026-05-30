@@ -3,7 +3,6 @@ const http = require('http')
 const express = require('express')
 const { Server } = require('socket.io')
 const cors = require('cors')
-const helmet = require('helmet')
 const morgan = require('morgan')
 const connectDB = require('./utils/connectDB')
 const path = require('path');
@@ -217,38 +216,6 @@ io.on('connection', (socket) => {
 })
 
 // ── Middleware ─────────────────────────────────────────────────────────
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],   // Cho phép load script Google GSI
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
-      imgSrc: [
-        "'self'",
-        'data:',
-        'blob:',
-        'https://res.cloudinary.com',             // Ảnh phòng trọ, avatar
-        'https://*.tile.openstreetmap.org',        // Leaflet map tiles
-        'https://nominatim.openstreetmap.org',     // Geocoding
-        'https://images.unsplash.com',
-        'https://lh3.googleusercontent.com',
-      ],
-      connectSrc: [
-        "'self'",
-        'https://res.cloudinary.com',
-        'https://nominatim.openstreetmap.org',
-        'https://accounts.google.com',             // Cho phép API kết nối Google
-        'wss:',                                    // WebSocket (socket.io)
-        'ws:',
-      ],
-      mediaSrc: ["'self'", 'https://res.cloudinary.com'],  // Video phòng
-      frameSrc: ["'self'", "https://accounts.google.com"], // Cho phép hiển thị iframe đăng nhập Google
-      objectSrc: ["'none'"],
-    },
-  },
-  crossOriginEmbedderPolicy: false,               // Cho phép embed Leaflet tiles
-}))
 if (process.env.NODE_ENV === 'development') app.use(morgan('dev'))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
