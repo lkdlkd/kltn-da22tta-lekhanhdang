@@ -16,12 +16,14 @@ import {
   MessageCircle,
   Search,
   ShieldCheck,
+  Sparkles,
   TrendingUp,
   Wifi,
 } from 'lucide-react'
 import { getRoomsApi } from '@/services/roomService'
 import { RoomCard, RoomCardSkeleton } from '@/components/rooms/RoomCard'
 import { getFavoriteIdsApi } from '@/services/favoriteService'
+import { forYouApi, getCommunityRecommendApi } from '@/services/recommendService'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import heroImage from '@/assets/home-hero-student-housing.jpg'
@@ -133,23 +135,30 @@ export default function HomePage() {
   const user = useSelector((state) => state.auth?.user)
   const [q, setQ] = useState('')
   const [area, setArea] = useState('')
-  const [featured, setFeatured] = useState([])
   const [recent, setRecent] = useState([])
-  const [loadingFeatured, setLoadingFeatured] = useState(true)
+  const [recommendations, setRecommendations] = useState([])
   const [loadingRecent, setLoadingRecent] = useState(true)
+  const [loadingRecommendations, setLoadingRecommendations] = useState(true)
   const [favoriteIds, setFavoriteIds] = useState([])
 
   useEffect(() => {
-    getRoomsApi({ sort: 'views', limit: 6, status: 'approved' })
-      .then((res) => setFeatured(res.data?.data?.rooms || []))
-      .catch(() => setFeatured([]))
-      .finally(() => setLoadingFeatured(false))
-
     getRoomsApi({ sort: 'newest', limit: 6, status: 'approved' })
       .then((res) => setRecent(res.data?.data?.rooms || []))
       .catch(() => setRecent([]))
       .finally(() => setLoadingRecent(false))
   }, [])
+
+  useEffect(() => {
+    setLoadingRecommendations(true)
+    const fetchRecs = user
+      ? forYouApi({ limit: 6 })
+      : getCommunityRecommendApi({ limit: 6 })
+
+    fetchRecs
+      .then((res) => setRecommendations(res.data?.data?.rooms || []))
+      .catch(() => setRecommendations([]))
+      .finally(() => setLoadingRecommendations(false))
+  }, [user])
 
   useEffect(() => {
     if (!user) {
@@ -159,7 +168,7 @@ export default function HomePage() {
     getFavoriteIdsApi()
       .then((res) => setFavoriteIds(res.data?.data?.roomIds || []))
       .catch(() => {})
-  }, [user, featured, recent])
+  }, [user, recent, recommendations])
 
   const handleSearch = (event) => {
     event.preventDefault()
@@ -202,7 +211,7 @@ export default function HomePage() {
                 asChild
                 className="h-11 rounded-lg bg-white text-slate-950 hover:bg-white/90 hover:text-slate-950 dark:bg-white dark:text-slate-950 dark:hover:bg-white/90 dark:hover:text-slate-950 sm:h-12"
               >
-                <Link to={user ? '/recommend' : '/login'}>
+                <Link to="/recommend">
                   Gợi ý cho bạn
                   <Compass className="h-4 w-4" />
                 </Link>
@@ -249,12 +258,13 @@ export default function HomePage() {
       <main className="mx-auto w-full max-w-7xl flex-1 space-y-12 px-4 py-8 sm:px-6 sm:py-10 lg:space-y-14 lg:px-8">
         <section>
           <SectionHeader
-            icon={TrendingUp}
-            title="Phòng nổi bật"
-            desc="Các tin được quan tâm nhiều, phù hợp để bạn bắt đầu so sánh nhanh."
-            href="/search?sort=views"
+            icon={Sparkles}
+            title={user ? "Gợi ý dành riêng cho bạn" : "Gợi ý nổi bật từ cộng đồng"}
+            desc={user ? "Phòng trọ được đề xuất dựa trên sở thích và hành vi của bạn." : "Phòng trọ được quan tâm nhiều và tương tác tốt nhất từ cộng đồng."}
+            href="/recommend"
+            action="Khám phá gợi ý"
           />
-          <RoomGrid loading={loadingFeatured} rooms={featured} emptyText="Chưa có phòng nổi bật." favoriteIds={favoriteIds} />
+          <RoomGrid loading={loadingRecommendations} rooms={recommendations} emptyText="Không có gợi ý phù hợp lúc này." favoriteIds={favoriteIds} />
         </section>
 
         <section className="rounded-xl border bg-muted/25 px-4 py-8 sm:px-6 lg:px-8">

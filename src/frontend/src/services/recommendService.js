@@ -36,3 +36,10 @@ export const wizardRecommendApi = (criteria) =>
  */
 export const forYouApi = (extra = {}) =>
   axiosInstance.post('/api/recommend/for-you', extra)
+
+/**
+ * API 4 — Gợi ý dựa trên hoạt động cộng đồng (public, dành cho khách chưa đăng nhập)
+ * @param {object} params - { lat, lng, radius, limit }
+ */
+export const getCommunityRecommendApi = (params = {}) =>
+  axiosInstance.get('/api/recommend/community', { params })

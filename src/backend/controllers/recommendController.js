@@ -2,7 +2,6 @@ const Room = require('../models/Room')
 const Favorite = require('../models/Favorite')
 const Interaction = require('../models/Interaction')
 const sendResponse = require('../utils/apiResponse')
-const { callAI } = require('../services/aiProxyService')
 const { rankSimilar, rankWizard, rankForYou } = require('../services/recommendFallbackService')
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -81,7 +80,7 @@ async function fetchUserHistory(userId) {
     user: userId,
     type: { $in: ['view', 'save', 'chat', 'booking'] },
   })
-    .sort({ createdAt: -1 })
+    .sort({ updatedAt: -1 })
     .limit(30)
     .populate('room', 'roomType price area capacity amenities')
 
@@ -95,7 +94,8 @@ async function fetchUserHistory(userId) {
       capacity: i.room.capacity || 1,
       amenities: i.room.amenities || [],
       interactionType: i.type,
-      interactedAt: i.createdAt.toISOString(),
+      interactedAt: i.updatedAt.toISOString(),
+      count: i.count || 1,
     }))
 }
 
@@ -166,21 +166,13 @@ exports.getSimilarRooms = async (req, res) => {
     const favMap = await buildBehaviorMap(candidates.map(r => r._id))
     const plainCandidates = attachBehavior(candidates.map(serializeRoom), favMap)
 
-    let rooms
-    try {
-      rooms = await callAI('similar', {
-        target: serializeRoom(target), candidates: plainCandidates,
-        center: { lat, lng }, radius_km: 10, limit,
-      })
-    } catch {
-      rooms = rankSimilar({
-        target: serializeRoom(target),
-        candidates: plainCandidates,
-        center: { lat, lng },
-        radiusKm: 10,
-        limit,
-      })
-    }
+    const rooms = rankSimilar({
+      target: serializeRoom(target),
+      candidates: plainCandidates,
+      center: { lat, lng },
+      radiusKm: 10,
+      limit,
+    })
 
     // ── Tier 3 padding: bổ sung nếu vẫn chưa đủ limit ──────────────────────────
     if (rooms.length < limit) {
@@ -197,21 +189,13 @@ exports.getSimilarRooms = async (req, res) => {
       if (tier3.length) {
         const favMap3 = await buildBehaviorMap(tier3.map(r => r._id))
         const plain3 = attachBehavior(tier3.map(serializeRoom), favMap3)
-        let padRooms
-        try {
-          padRooms = await callAI('similar', {
-            target: serializeRoom(target), candidates: plain3,
-            center: { lat, lng }, radius_km: 999, limit: need,
-          })
-        } catch {
-          padRooms = rankSimilar({
-            target: serializeRoom(target),
-            candidates: plain3,
-            center: { lat, lng },
-            radiusKm: 999,
-            limit: need,
-          })
-        }
+        const padRooms = rankSimilar({
+          target: serializeRoom(target),
+          candidates: plain3,
+          center: { lat, lng },
+          radiusKm: 999,
+          limit: need,
+        })
         rooms = [...rooms, ...padRooms]
       }
     }
@@ -245,22 +229,12 @@ exports.wizardRecommend = async (req, res) => {
     const plainCandidates = attachBehavior(rawCandidates.map(serializeRoom), favMap)
     const criteria = { roomType, priceMin, priceMax, areaMin, capacity, amenities, radius }
 
-    let rooms
-    try {
-      rooms = await callAI('wizard', {
-        criteria,
-        candidates: plainCandidates,
-        center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
-        limit: effectiveLimit,
-      })
-    } catch {
-      rooms = rankWizard({
-        criteria,
-        candidates: plainCandidates,
-        center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
-        limit: effectiveLimit,
-      })
-    }
+    const rooms = rankWizard({
+      criteria,
+      candidates: plainCandidates,
+      center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
+      limit: effectiveLimit,
+    })
 
     return sendResponse(res, 200, true, `Gợi ý ${rooms.length} phòng phù hợp`, { rooms, total: rooms.length })
   } catch (err) {
@@ -355,30 +329,171 @@ exports.forYouRecommend = async (req, res) => {
     // ── Bước 6: Gửi FastAPI /for-you với userHistory ─────────────────────
     const criteria = { roomType, priceMin, priceMax, areaMin, capacity, amenities, radius }
 
-    let rooms
-    try {
-      rooms = await callAI('for-you', {
-        criteria,
-        candidates: plainCandidates,
-        userHistory,   // FastAPI xây user_profile_vec từ đây
-        center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
-        limit: effectiveLimit,
-      })
-    } catch {
-      rooms = rankForYou({
-        criteria,
-        candidates: plainCandidates,
-        userHistory,
-        center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
-        limit: effectiveLimit,
-      })
-    }
+    const rooms = rankForYou({
+      criteria,
+      candidates: plainCandidates,
+      userHistory,
+      center: lat && lng ? { lat: Number(lat), lng: Number(lng) } : null,
+      limit: effectiveLimit,
+    })
 
     return sendResponse(res, 200, true, `Gợi ý cá nhân ${rooms.length} phòng`, {
       rooms,
       total: rooms.length,
       usedCriteria: { roomType, priceMin, priceMax, amenities, hasImplicit: !!implicit },
     })
+  } catch (err) {
+    return sendResponse(res, 500, false, err.message)
+  }
+}
+
+/** Build { roomId → { chat, booking } } map from DB */
+async function buildInteractionMap(roomIds) {
+  const interactions = await Interaction.aggregate([
+    { $match: { room: { $in: roomIds }, type: { $in: ['chat', 'booking'] } } },
+    { $group: {
+        _id: { room: '$room', type: '$type' },
+        count: { $sum: '$count' }
+      }
+    }
+  ])
+
+  const map = {}
+  interactions.forEach((i) => {
+    const rId = String(i._id.room)
+    const type = i._id.type
+    if (!map[rId]) {
+      map[rId] = { chat: 0, booking: 0 }
+    }
+    map[rId][type] = i.count
+  })
+  return map
+}
+
+/** Calculate community score based on: 10% views + 20% favorites + 30% chats + 40% bookings */
+function attachCommunityScore(rooms, favMap, interactionMap) {
+  const maxView = Math.max(...rooms.map((r) => r.viewCount || 0), 1)
+  const maxFav = Math.max(...Object.values(favMap).concat([1]))
+  const maxChat = Math.max(...rooms.map((r) => interactionMap[String(r._id)]?.chat || 0), 1)
+  const maxBooking = Math.max(...rooms.map((r) => interactionMap[String(r._id)]?.booking || 0), 1)
+
+  return rooms.map((r) => {
+    const roomId = String(r._id)
+    const views = r.viewCount || 0
+    const favs = favMap[roomId] || 0
+    const chats = interactionMap[roomId]?.chat || 0
+    const bookings = interactionMap[roomId]?.booking || 0
+
+    // Trọng số: 10% views, 20% favorites, 30% chats, 40% bookings
+    const score =
+      0.1 * (views / maxView) +
+      0.2 * (favs / maxFav) +
+      0.3 * (chats / maxChat) +
+      0.4 * (bookings / maxBooking)
+
+    return {
+      ...r,
+      _behavior: score,
+    }
+  })
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// API 4 — GET /api/recommend/community
+// Gợi ý dựa trên hoạt động cộng đồng (public, không cần login)
+// ══════════════════════════════════════════════════════════════════════════════
+exports.getCommunityRecommend = async (req, res) => {
+  try {
+    const { lat, lng, radius = 5, limit = 6 } = req.query
+    const effectiveLimit = Math.min(Number(limit) || 6, 24)
+
+    const hasGps = !!(lat && lng)
+    let rawCandidates
+
+    if (hasGps) {
+      // Có GPS: Sắp xếp theo vị trí trước qua $near
+      const gpsFilter = {
+        status: 'approved',
+        isAvailable: true,
+        location: {
+          $near: {
+            $geometry: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+          },
+        },
+      }
+      rawCandidates = await Room.find(gpsFilter).limit(150).populate('landlord', 'name avatar')
+    } else {
+      // Không có GPS: Lấy top 150 phòng có lượt xem cao nhất làm ứng viên
+      rawCandidates = await Room.find({ status: 'approved', isAvailable: true })
+        .sort({ viewCount: -1 })
+        .limit(150)
+        .populate('landlord', 'name avatar')
+    }
+
+    if (!rawCandidates.length) {
+      return sendResponse(res, 200, true, 'Gợi ý từ cộng đồng', { rooms: [] })
+    }
+
+    const [favMap, interactionMap] = await Promise.all([
+      buildBehaviorMap(rawCandidates.map(r => r._id)),
+      buildInteractionMap(rawCandidates.map(r => r._id))
+    ])
+
+    const plainCandidates = attachCommunityScore(rawCandidates.map(serializeRoom), favMap, interactionMap)
+
+    let rooms
+    if (hasGps) {
+      // Nếu có GPS, kết hợp khoảng cách + behavior score
+      const center = { lat: Number(lat), lng: Number(lng) }
+      const radiusKm = Number(radius)
+
+      rooms = plainCandidates.map(room => {
+        const coords = room.location?.coordinates
+        let locScore = 0
+        if (coords && coords.length >= 2) {
+          const rLng = coords[0]
+          const rLat = coords[1]
+          
+          // Haversine distance
+          const R = 6371
+          const dLat = (rLat - center.lat) * Math.PI / 180
+          const dLng = (rLng - center.lng) * Math.PI / 180
+          const a = Math.sin(dLat / 2) ** 2 + Math.cos(center.lat * Math.PI / 180) * Math.cos(rLat * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+          const dist = 2 * R * Math.asin(Math.sqrt(a))
+          
+          const innerRadius = radiusKm * 0.4
+          if (dist <= innerRadius) locScore = 1
+          else locScore = Math.min(Math.max(1 - (dist - innerRadius) / (radiusKm - innerRadius + 1e-9), 0), 1)
+        }
+        
+        const behScore = room._behavior || 0
+        const finalScore = 0.6 * locScore + 0.4 * behScore
+        return {
+          ...room,
+          _score: Math.round(finalScore * 10000) / 10000
+        }
+      })
+      .sort((a, b) => b._score - a._score)
+      .slice(0, effectiveLimit)
+    } else {
+      // Không có GPS, sắp xếp thuần theo behavior score
+      rooms = plainCandidates
+        .sort((a, b) => b._behavior - a._behavior)
+        .map(room => ({
+          ...room,
+          _score: Math.round(room._behavior * 10000) / 10000
+        }))
+        .slice(0, effectiveLimit)
+    }
+
+    // Populate landlord info back for frontend RoomCard
+    const landlordMap = new Map(rawCandidates.map(c => [String(c._id), c.landlord]))
+    rooms = rooms.map(r => ({
+      ...r,
+      landlord: landlordMap.get(r._id) || null
+    }))
+
+    return sendResponse(res, 200, true, 'Gợi ý từ cộng đồng thành công', { rooms })
   } catch (err) {
     return sendResponse(res, 500, false, err.message)
   }

@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { RoomCard, RoomCardSkeleton } from '@/components/rooms/RoomCard'
 import { LocationPickerDialog } from '@/components/common/LocationPickerDialog'
 import { selectIsAuthenticated } from '@/features/auth/authSlice'
-import { forYouApi, wizardRecommendApi } from '@/services/recommendService'
+import { forYouApi, wizardRecommendApi, getCommunityRecommendApi } from '@/services/recommendService'
 import { getFavoriteIdsApi } from '@/services/favoriteService'
 import { cn } from '@/lib/utils'
 
@@ -56,7 +56,7 @@ export default function RecommendPage() {
   const fetchTopForGuest = useCallback(async (location = null) => {
     setLoading(true)
     try {
-      const res = await wizardRecommendApi({ limit: 12, ...(location ?? {}) })
+      const res = await getCommunityRecommendApi({ limit: 12, ...(location ?? {}) })
       setRooms(res.data?.data?.rooms || [])
     } catch {
       toast.error('Không tải được gợi ý')

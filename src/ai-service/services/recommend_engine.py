@@ -223,6 +223,10 @@ def build_user_profile_vector(
         # Intent weight
         w = intent_map.get(itype, 1.0)
 
+        # Nhân thêm tần suất tương tác/xem
+        icount = room.get("count", 1)
+        w *= icount
+
         # Time decay  (half-life = 7 days)
         if interacted_ats and idx < len(interacted_ats) and interacted_ats[idx]:
             try:

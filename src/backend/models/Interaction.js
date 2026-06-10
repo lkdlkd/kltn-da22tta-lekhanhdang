@@ -9,12 +9,16 @@ const interactionSchema = new mongoose.Schema(
       enum: ['view', 'save', 'chat', 'booking'],
       required: true,
     },
+    count: {
+      type: Number,
+      default: 1,
+    },
   },
   { timestamps: true }
 )
 
 // Index cho recently-viewed query
-interactionSchema.index({ user: 1, type: 1, createdAt: -1 })
+interactionSchema.index({ user: 1, type: 1, updatedAt: -1 })
 // Index cho AI recommendation (user-room matrix)
 interactionSchema.index({ user: 1, room: 1, type: 1 })
 

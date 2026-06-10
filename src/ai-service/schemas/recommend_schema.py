@@ -90,6 +90,7 @@ class UserInteraction(BaseModel):
     amenities: List[str] = []
     interactionType: str = "view"   # 'view' | 'save'
     interactedAt: Optional[str] = None  # ISO string, dùng cho time decay
+    count: int = 1
 
 
 class ForYouRequest(BaseModel):

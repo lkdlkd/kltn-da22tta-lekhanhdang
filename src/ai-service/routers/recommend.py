@@ -136,6 +136,7 @@ def for_you_recommend(req: ForYouRequest):
             "area":      h.area,
             "capacity":  h.capacity,
             "amenities": h.amenities,
+            "count":     h.count,
         })
         history_types.append(h.interactionType)
 

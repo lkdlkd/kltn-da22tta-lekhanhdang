@@ -336,8 +336,8 @@ export function Navbar() {
               {label}
             </Link>
           ))}
-          {isAuth && user?.role === 'landlord' && <LandlordDropdown />}
-          {isAuth && user?.role === 'admin' && (
+          {/* {isAuth && user?.role === 'landlord' && <LandlordDropdown />} */}
+          {/* {isAuth && user?.role === 'admin' && (
             <Link
               to="/admin"
               className={cn(
@@ -348,7 +348,7 @@ export function Navbar() {
               <Shield className="h-4 w-4" />
               Admin
             </Link>
-          )}
+          )} */}
         </nav>
 
         <div className="flex-1" />

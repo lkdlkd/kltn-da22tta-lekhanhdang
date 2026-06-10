@@ -16,16 +16,21 @@ const MAX_PER_TYPE = { view: 100, save: 50, chat: 30, booking: 20 }
 async function recordInteraction(userId, roomId, type) {
   const max = MAX_PER_TYPE[type] ?? 50
 
-  // Tạo bản ghi mới
-  await Interaction.create({ user: userId, room: roomId, type })
+  // Tìm tương tác cũ để cộng dồn count (với view) hoặc chỉ cập nhật thời gian (với type khác), ngược lại tạo mới
+  const update = type === 'view' ? { $inc: { count: 1 } } : { $set: { updatedAt: new Date() } }
+  await Interaction.findOneAndUpdate(
+    { user: userId, room: roomId, type },
+    update,
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  )
 
   // Đếm tổng của loại này cho user
   const count = await Interaction.countDocuments({ user: userId, type })
   if (count > max) {
-    // Xóa (count - max) bản ghi cũ nhất
+    // Xóa (count - max) bản ghi lâu không cập nhật nhất
     const excess = count - max
     const oldest = await Interaction.find({ user: userId, type })
-      .sort({ createdAt: 1 })
+      .sort({ updatedAt: 1 })
       .limit(excess)
       .select('_id')
     await Interaction.deleteMany({ _id: { $in: oldest.map(d => d._id) } })
@@ -44,7 +49,7 @@ exports.createInteraction = async (req, res) => {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
       const existing = await Interaction.findOne({
         user: req.user._id, room: roomId, type: 'view',
-        createdAt: { $gte: oneHourAgo },
+        updatedAt: { $gte: oneHourAgo },
       })
       if (existing) return sendResponse(res, 200, true, 'Already tracked')
     }
@@ -65,12 +70,12 @@ exports.getRecentlyViewed = async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 10, 20)
 
-    // Lấy cả view + save, sort gần nhất
+    // Lấy cả view + save, sort gần nhất theo updatedAt
     const interactions = await Interaction.find({
       user: req.user._id,
       type: { $in: ['view', 'save'] },
     })
-      .sort({ createdAt: -1 })
+      .sort({ updatedAt: -1 })
       .populate({ path: 'room', select: 'title slug images price area roomType location isAvailable', populate: { path: 'landlord', select: 'name' } })
       .limit(limit * 4) // lấy dư để deduplicate
 

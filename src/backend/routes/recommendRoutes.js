@@ -1,5 +1,5 @@
 const express = require('express')
-const { getSimilarRooms, wizardRecommend, forYouRecommend } = require('../controllers/recommendController')
+const { getSimilarRooms, wizardRecommend, forYouRecommend, getCommunityRecommend } = require('../controllers/recommendController')
 const { authenticate } = require('../middlewares/auth')
 
 const router = express.Router()
@@ -15,5 +15,9 @@ router.post('/wizard', wizardRecommend)
 // API 3 — Gợi ý cá nhân hóa theo hành vi (bắt buộc đăng nhập)
 // POST /api/recommend/for-you
 router.post('/for-you', authenticate, forYouRecommend)
+
+// API 4 — Gợi ý dựa trên hoạt động cộng đồng (public, không cần login)
+// GET /api/recommend/community
+router.get('/community', getCommunityRecommend)
 
 module.exports = router

@@ -124,8 +124,8 @@ function locationScore(room, center, radiusKm) {
   return Math.min(Math.max(1 - (distanceKm - innerRadius) / (radius - innerRadius + 1e-9), 0), 1)
 }
 
-function qualityScore(room) {
-  return Math.min(Math.max(number(room._behavior), 0.05), 1)
+function qualityScore(room, normBehavior = 1.0) {
+  return Math.min(Math.max(number(room._behavior) / normBehavior, 0.05), 1)
 }
 
 function buildUserProfileVector(history, stats) {
@@ -137,6 +137,10 @@ function buildUserProfileVector(history, stats) {
     if (item.interactionType === 'save') weight = 2
     else if (item.interactionType === 'chat') weight = 3
     else if (item.interactionType === 'booking') weight = 4
+
+    // Nhân thêm trọng số tần suất xem/tương tác
+    const count = Number(item.count) || 1
+    weight *= count
 
     if (item.interactedAt) {
       const ts = Date.parse(item.interactedAt)
@@ -184,11 +188,14 @@ function scoreAndRank({
     wPersonal /= total
   }
 
+  const maxBehavior = Math.max(...candidates.map((r) => number(r._behavior)), 0)
+  const normBehavior = maxBehavior > 1e-9 ? maxBehavior : 1.0
+
   return candidates
     .map((room) => {
       const content = cosine(targetVec, buildRoomVector(room, stats)) * amenityMatch(room, requiredAmenities)
       const location = wLocation > 0 ? locationScore(room, center, radiusKm) : 0
-      const quality = qualityScore(room)
+      const quality = qualityScore(room, normBehavior)
       const personal = wPersonal > 0 ? personalScore(room, userProfileVec, stats) : 0
       const score = wContent * content + wLocation * location + wQuality * quality + wPersonal * personal
       return { ...room, _score: Math.round(score * 10000) / 10000 }

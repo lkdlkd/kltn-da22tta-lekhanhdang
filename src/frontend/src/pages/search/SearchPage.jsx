@@ -28,6 +28,7 @@ import { LocationPickerDialog } from '@/components/common/LocationPickerDialog'
 import { RoomFinderWizard } from '@/components/rooms/RoomFinderWizard'
 import { RoomCard, RoomCardSkeleton, formatRoomAddress } from '@/components/rooms/RoomCard'
 import { searchRoomsApi } from '@/services/roomService'
+import { getCommunityRecommendApi, forYouApi } from '@/services/recommendService'
 import { useSelector } from 'react-redux'
 import { getFavoriteIdsApi } from '@/services/favoriteService'
 import { Badge } from '@/components/ui/badge'
@@ -332,6 +333,20 @@ export default function SearchPage() {
 
   const user = useSelector((state) => state.auth?.user)
   const [favoriteIds, setFavoriteIds] = useState([])
+  const [recs, setRecs] = useState([])
+  const [loadingRecs, setLoadingRecs] = useState(true)
+
+  useEffect(() => {
+    setLoadingRecs(true)
+    const fetchRecs = user
+      ? forYouApi({ limit: 12 })
+      : getCommunityRecommendApi({ limit: 12 })
+
+    fetchRecs
+      .then((res) => setRecs(res.data?.data?.rooms || []))
+      .catch(() => setRecs([]))
+      .finally(() => setLoadingRecs(false))
+  }, [user])
 
   useEffect(() => {
     if (!user) {
@@ -341,7 +356,7 @@ export default function SearchPage() {
     getFavoriteIdsApi()
       .then((res) => setFavoriteIds(res.data?.data?.roomIds || []))
       .catch(() => { })
-  }, [user, rooms])
+  }, [user, rooms, recs])
 
   const filters = useMemo(() => ({
     q: searchParams.get('q') || '',
@@ -371,6 +386,10 @@ export default function SearchPage() {
     return count
   }, [filters])
 
+  const isDefaultState = filters.q === '' && activeCount === 0 && page === 1 && filters.sort === 'newest'
+  const currentRooms = isDefaultState ? recs : rooms
+  const currentLoading = isDefaultState ? loadingRecs : loading
+
   const buildParams = useCallback((limit, nextPage = page) => {
     const params = {
       ...filters,
@@ -390,6 +409,11 @@ export default function SearchPage() {
   }, [filters, page, userLocation])
 
   useEffect(() => {
+    if (isDefaultState) {
+      setRooms([])
+      setLoading(false)
+      return
+    }
     let ignore = false
     const fetchRooms = async () => {
       try {
@@ -408,7 +432,7 @@ export default function SearchPage() {
     return () => {
       ignore = true
     }
-  }, [searchParams, page, userLocation, buildParams])
+  }, [searchParams, page, userLocation, buildParams, isDefaultState])
 
   useEffect(() => {
     if (!showMap) return
@@ -473,7 +497,7 @@ export default function SearchPage() {
   }
 
   const roomPositions = useMemo(() => {
-    const source = showMap ? mapRooms : rooms
+    const source = showMap ? mapRooms : currentRooms
     return source
       .filter((room) => room.location?.coordinates?.length === 2)
       .map((room) => ({
@@ -486,7 +510,7 @@ export default function SearchPage() {
         lat: room.location.coordinates[1],
         lng: room.location.coordinates[0],
       }))
-  }, [showMap, mapRooms, rooms])
+  }, [showMap, mapRooms, currentRooms])
 
   const mapCenter = useMemo(() => {
     if (userLocation) return [userLocation.lat, userLocation.lng]
@@ -550,8 +574,12 @@ export default function SearchPage() {
         </div>
 
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-2 px-4 pb-3 sm:px-6 lg:px-8">
-          <span className={cn('text-sm font-semibold', loading ? 'text-muted-foreground' : 'text-foreground')}>
-            {loading ? 'Đang tìm...' : `${pagination.total} phòng phù hợp`}
+          <span className={cn('text-sm font-semibold', currentLoading ? 'text-muted-foreground' : 'text-foreground')}>
+            {currentLoading 
+              ? 'Đang tìm...' 
+              : isDefaultState 
+                ? (user ? 'Gợi ý dành riêng cho bạn' : 'Gợi ý nổi bật từ cộng đồng') 
+                : `${pagination.total} phòng phù hợp`}
           </span>
           {tags.map((tag, index) => (
             <button key={`${tag.label}-${index}`} type="button" onClick={tag.clear} className="inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary">
@@ -587,30 +615,52 @@ export default function SearchPage() {
               <Button variant={showMap ? 'default' : 'outline'} size="sm" className="h-9 rounded-lg text-xs" onClick={() => setShowMap((value) => !value)}><MapIcon className="h-3.5 w-3.5" />Bản đồ</Button>
             </div>
 
-            {loading ? (
+            {currentLoading ? (
               <div className={cn('grid', viewMode === 'list' || showMap ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3')}>
                 {Array.from({ length: 6 }).map((_, index) => <RoomCardSkeleton key={index} view={viewMode === 'list' || showMap ? 'list' : 'grid'} />)}
               </div>
-            ) : rooms.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                    <Search className="h-6 w-6" />
+            ) : currentRooms.length === 0 ? (
+              <div className="space-y-6">
+                <Card>
+                  <CardContent className="flex flex-col items-center gap-3 px-6 py-16 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                      <Search className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Không tìm thấy phòng phù hợp</p>
+                      <p className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">Thử đổi từ khóa, mở rộng khoảng giá hoặc bỏ bớt tiện ích để xem thêm kết quả.</p>
+                    </div>
+                    <Button variant="outline" className="rounded-lg" onClick={handleReset}>
+                      <RotateCcw className="h-4 w-4" />
+                      Đặt lại bộ lọc
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {recs.length > 0 && (
+                  <div className="rounded-xl border bg-card p-5">
+                    <h3 className="mb-4 text-sm font-bold flex items-center gap-2 text-foreground">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      {user ? 'Gợi ý có thể bạn quan tâm' : 'Phòng trọ gợi ý từ cộng đồng'}
+                    </h3>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {recs.slice(0, 3).map((room) => (
+                        <RoomCard
+                          key={room._id}
+                          room={room}
+                          view="grid"
+                          initialFavorited={favoriteIds.includes(String(room._id))}
+                          amenitiesMap={Object.fromEntries(AMENITIES.map((item) => [item.value, item.label]))}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold">Không tìm thấy phòng phù hợp</p>
-                    <p className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">Thử đổi từ khóa, mở rộng khoảng giá hoặc bỏ bớt tiện ích để xem thêm kết quả.</p>
-                  </div>
-                  <Button variant="outline" className="rounded-lg" onClick={handleReset}>
-                    <RotateCcw className="h-4 w-4" />
-                    Đặt lại bộ lọc
-                  </Button>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             ) : (
               <>
                 <div className={cn('grid', viewMode === 'list' || showMap ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3')}>
-                  {rooms.map((room) => (
+                  {currentRooms.map((room) => (
                     <div key={room._id} ref={(element) => { cardRefs.current[room._id] = element }}>
                       <RoomCard
                         room={room}
@@ -623,7 +673,9 @@ export default function SearchPage() {
                     </div>
                   ))}
                 </div>
-                <Pagination page={page} total={pagination.total} totalPages={pagination.totalPages} onChange={handlePage} />
+                {!isDefaultState && (
+                  <Pagination page={page} total={pagination.total} totalPages={pagination.totalPages} onChange={handlePage} />
+                )}
               </>
             )}
           </main>
