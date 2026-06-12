@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
  */
 const sendEmail = async ({ to, subject, html }) => {
   const mailOptions = {
-    from: `"PhòngTrọ Vĩnh Long" <${process.env.EMAIL_USER}>`,
+    from: `"PhòngTrọ Sinh Viên" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html,
@@ -129,7 +129,7 @@ const buildHtmlTemplate = (title, bodyHtml, buttonText, buttonUrl) => {
       <div class="wrapper">
         <div class="container">
           <div class="header">
-            <h1>PhòngTrọ Vĩnh Long</h1>
+            <h1>PhòngTrọ Sinh Viên</h1>
           </div>
           <div class="content">
             ${bodyHtml}
@@ -140,8 +140,8 @@ const buildHtmlTemplate = (title, bodyHtml, buttonText, buttonUrl) => {
             ` : ''}
           </div>
           <div class="footer">
-            <p>Đây là thư tự động gửi từ hệ thống PhòngTrọ Vĩnh Long.</p>
-            <p>&copy; ${new Date().getFullYear()} PhòngTrọ Vĩnh Long. All rights reserved.</p>
+            <p>Đây là thư tự động gửi từ hệ thống PhòngTrọ Sinh Viên.</p>
+            <p>&copy; ${new Date().getFullYear()} PhòngTrọ Sinh Viên. All rights reserved.</p>
           </div>
         </div>
       </div>

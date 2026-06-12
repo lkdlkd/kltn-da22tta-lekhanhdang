@@ -42,7 +42,7 @@ export default function ContactPage() {
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
 
-  const hostname = window.location.hostname || 'phongtrotvu.local'
+  const hostname = window.location.hostname || 'sinhvientvu.com'
   const contactItems = [
     {
       icon: MapPin,

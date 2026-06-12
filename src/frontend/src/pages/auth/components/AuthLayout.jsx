@@ -38,7 +38,7 @@ export function AuthBrand({ compact = false }) {
           <span className={cn('font-extrabold tracking-tight text-foreground', compact ? 'text-sm' : 'text-base')}>
             Phòng Trọ
           </span>
-          <span className={cn('font-extrabold text-primary', compact ? 'text-sm' : 'text-base')}>TVU</span>
+          <span className={cn('font-extrabold text-primary', compact ? 'text-sm' : 'text-base')}>Sinh Viên</span>
         </div>
         <p className="mt-1 text-[11px] font-medium text-muted-foreground">
           Tìm phòng trọ thông minh tại Vĩnh Long

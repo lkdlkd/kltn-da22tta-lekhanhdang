@@ -44,7 +44,7 @@ export default function AdminLayout() {
           </div>
           <div className="min-w-0">
             <p className="font-bold leading-tight">Admin Console</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Quản trị Phòng Trọ TVU</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Quản trị Phòng Trọ Sinh Viên</p>
           </div>
         </div>
 
@@ -79,8 +79,8 @@ export default function AdminLayout() {
                 className={({ isActive }) =>
                   cn(
                     'flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3.5 text-xs font-semibold transition-all duration-300',
-                    isActive 
-                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 scale-[1.02]' 
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 scale-[1.02]'
                       : 'text-muted-foreground hover:bg-muted/65 hover:text-foreground'
                   )
                 }

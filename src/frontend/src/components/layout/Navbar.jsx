@@ -54,7 +54,7 @@ function Brand() {
       <div className="leading-none">
         <div className="flex items-baseline gap-1">
           <span className="text-sm font-extrabold tracking-tight text-foreground">Phòng Trọ</span>
-          <span className="text-sm font-extrabold text-primary">TVU</span>
+          <span className="text-sm font-extrabold text-primary">Sinh Viên</span>
         </div>
         <p className="mt-1 hidden text-[10px] font-medium text-muted-foreground sm:block">
           Tìm phòng trọ thông minh tại Vĩnh Long

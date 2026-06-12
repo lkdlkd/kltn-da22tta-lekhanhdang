@@ -88,7 +88,7 @@ export default function AboutPage() {
           <span className="text-primary">thông minh</span>
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-          Phòng Trọ TVU giúp sinh viên tìm kiếm phòng trọ phù hợp tại Vĩnh Long một cách nhanh chóng, minh bạch và tiện lợi — với hệ thống gợi ý cá nhân hóa thông minh.
+          Phòng Trọ Sinh Viên giúp sinh viên tìm kiếm phòng trọ phù hợp tại Vĩnh Long một cách nhanh chóng, minh bạch và tiện lợi — với hệ thống gợi ý cá nhân hóa thông minh.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <Button asChild className="rounded-xl">
@@ -113,7 +113,7 @@ export default function AboutPage() {
 
       {/* Features */}
       <div className="mb-12">
-        <h2 className="mb-2 text-xl font-bold sm:text-2xl">Tại sao chọn Phòng Trọ TVU?</h2>
+        <h2 className="mb-2 text-xl font-bold sm:text-2xl">Tại sao chọn Phòng Trọ Sinh Viên?</h2>
         <p className="mb-6 text-sm text-muted-foreground">Chúng tôi tập trung vào những gì sinh viên thực sự cần khi tìm phòng.</p>
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
           {FEATURES.map(({ icon: Icon, title, desc }) => (

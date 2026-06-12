@@ -224,7 +224,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Tạo tài khoản"
-      description="Tham gia Phòng Trọ TVU để bắt đầu trải nghiệm tốt nhất."
+      description="Tham gia Phòng Trọ Sinh Viên để bắt đầu trải nghiệm tốt nhất."
       asideTitle="Bắt đầu với tài khoản phù hợp cho nhu cầu của bạn."
       asideDescription="Sinh viên có thể lưu phòng và đặt lịch xem. Chủ trọ có thể đăng tin, quản lý lịch hẹn và trao đổi với người thuê."
       asideItems={[
@@ -288,7 +288,7 @@ export default function RegisterPage() {
                 active={false}
                 icon={GraduationCap}
                 title="Sinh viên / Người thuê"
-                description="Tìm phòng nhanh chóng quanh TVU, lưu tin yêu thích và đặt lịch hẹn xem phòng."
+                description="Tìm phòng nhanh chóng quanh Sinh Viên, lưu tin yêu thích và đặt lịch hẹn xem phòng."
                 onClick={() => handleRoleSelect('student')}
                 disabled={roleLoading}
               />

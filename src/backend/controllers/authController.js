@@ -121,7 +121,7 @@ exports.finalizeRole = async (req, res) => {
       'Xác thực Email',
       `
         <p>Xin chào <strong>${user.name}</strong>,</p>
-        <p>Cảm ơn bạn đã đăng ký tài khoản <strong>Chủ trọ</strong> tại hệ thống <strong>PhòngTrọ Vĩnh Long</strong>.</p>
+        <p>Cảm ơn bạn đã đăng ký tài khoản <strong>Chủ trọ</strong> tại hệ thống <strong>PhòngTrọ Sinh Viên</strong>.</p>
         <p>Để hoàn tất quá trình đăng ký và bắt đầu đăng tin cho thuê phòng trọ, vui lòng nhấp vào nút xác thực dưới đây:</p>
         <div class="accent-box">
           <p><strong>Lưu ý:</strong> Liên kết xác thực này chỉ có hiệu lực trong vòng <strong>24 giờ</strong>. Nếu quá thời gian trên, bạn sẽ cần thực hiện lại quy trình đăng ký.</p>
@@ -134,7 +134,7 @@ exports.finalizeRole = async (req, res) => {
     // Gửi email xác thực trong background, tránh block API dẫn đến timeout
     sendEmail({
       to: user.email,
-      subject: '[PhòngTrọ Vĩnh Long] Xác thực địa chỉ Email của bạn',
+      subject: '[PhòngTrọ Sinh Viên] Xác thực địa chỉ Email của bạn',
       html: emailHtml,
     }).catch((emailErr) => {
       console.error('Không thể gửi email xác thực trong background:', emailErr.message)
@@ -238,7 +238,7 @@ exports.forgotPassword = async (req, res) => {
       'Đặt lại mật khẩu',
       `
         <p>Xin chào <strong>${user.name}</strong>,</p>
-        <p>Chúng tôi nhận được yêu cầu thiết lập lại mật khẩu cho tài khoản liên kết với email này trên hệ thống <strong>PhòngTrọ Vĩnh Long</strong>.</p>
+        <p>Chúng tôi nhận được yêu cầu thiết lập lại mật khẩu cho tài khoản liên kết với email này trên hệ thống <strong>PhòngTrọ Sinh Viên</strong>.</p>
         <p>Để đặt mật khẩu mới, vui lòng nhấp vào nút bên dưới:</p>
         <div class="accent-box">
           <p><strong>Lưu ý quan trọng:</strong> Đường dẫn này chỉ có hiệu lực trong vòng <strong>1 giờ</strong>. Nếu không phải bạn gửi yêu cầu này, vui lòng bỏ qua email này để giữ an toàn cho tài khoản.</p>
@@ -251,7 +251,7 @@ exports.forgotPassword = async (req, res) => {
     // Gửi email đặt lại mật khẩu trong background, tránh block API dẫn đến timeout
     sendEmail({
       to: user.email,
-      subject: '[PhòngTrọ Vĩnh Long] Yêu cầu khôi phục mật khẩu',
+      subject: '[PhòngTrọ Sinh Viên] Yêu cầu khôi phục mật khẩu',
       html: emailHtml,
     }).catch((emailErr) => {
       console.error('Không thể gửi email đặt lại mật khẩu trong background:', emailErr.message)
@@ -486,7 +486,7 @@ exports.resendVerification = async (req, res) => {
         'Xác thực Email',
         `
           <p>Xin chào <strong>${user.name}</strong>,</p>
-          <p>Cảm ơn bạn đã đăng ký tài khoản <strong>Chủ trọ</strong> tại hệ thống <strong>PhòngTrọ Vĩnh Long</strong>.</p>
+          <p>Cảm ơn bạn đã đăng ký tài khoản <strong>Chủ trọ</strong> tại hệ thống <strong>PhòngTrọ Sinh Viên</strong>.</p>
           <p>Để hoàn tất quá trình đăng ký và bắt đầu đăng tin cho thuê phòng trọ, vui lòng nhấp vào nút xác thực dưới đây:</p>
           <div class="accent-box">
             <p><strong>Lưu ý:</strong> Liên kết xác thực này chỉ có hiệu lực trong vòng <strong>24 giờ</strong>. Nếu quá thời gian trên, bạn sẽ cần thực hiện lại quy trình đăng ký.</p>
@@ -498,7 +498,7 @@ exports.resendVerification = async (req, res) => {
 
       sendEmail({
         to: user.email,
-        subject: '[PhòngTrọ Vĩnh Long] Xác thực địa chỉ Email của bạn',
+        subject: '[PhòngTrọ Sinh Viên] Xác thực địa chỉ Email của bạn',
         html: emailHtml,
       }).catch((emailErr) => {
         console.error('Không thể gửi email xác thực trong background:', emailErr.message)

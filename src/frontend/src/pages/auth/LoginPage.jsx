@@ -238,7 +238,7 @@ export default function LoginPage() {
         <AuthShell
           title="Chọn vai trò của bạn"
           description="Để bắt đầu, hãy chọn vai trò phù hợp nhất với nhu cầu của bạn."
-          asideTitle="Chào mừng bạn đến với Phòng Trọ TVU."
+          asideTitle="Chào mừng bạn đến với Phòng Trọ Sinh Viên."
           asideDescription="Để tiếp tục sử dụng dịch vụ bằng tài khoản Google, hãy xác định vai trò của bạn."
           asideItems={[
             { icon: Search, title: 'Tìm nhanh', desc: 'Lọc theo giá, vị trí và tiện ích.' },
@@ -314,7 +314,7 @@ export default function LoginPage() {
           <AuthCard
             icon={Mail}
             title="Đăng nhập"
-            description="Nhập thông tin tài khoản Phòng Trọ TVU của bạn."
+            description="Nhập thông tin tài khoản Phòng Trọ Sinh Viên của bạn."
           >
             <form onSubmit={handleSubmit(onSubmit)}>
               <CardContent className="space-y-5">

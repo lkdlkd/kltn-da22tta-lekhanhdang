@@ -33,7 +33,7 @@ export function Footer() {
               </span>
               <span className="leading-tight">
                 <span className="block text-base font-extrabold tracking-tight">
-                  Phòng Trọ <span className="text-primary">TVU</span>
+                  Phòng Trọ <span className="text-primary">Sinh Viên</span>
                 </span>
                 <span className="text-xs text-muted-foreground">Tìm phòng · Gợi ý · Vĩnh Long</span>
               </span>
@@ -42,13 +42,13 @@ export function Footer() {
             <p className="max-w-md text-sm leading-6 text-muted-foreground">
               Nền tảng hỗ trợ sinh viên tìm phòng trọ quanh Vĩnh Long, so sánh thông tin rõ ràng và kết nối nhanh với chủ trọ.
             </p>
-
+            {/* 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
                 <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <div>
                   <p className="text-sm font-semibold">Đồ án tốt nghiệp</p>
-                  <p className="mt-0.5 text-xs leading-5 text-muted-foreground">Trường Đại học Trà Vinh · CNTT</p>
+                  <p className="mt-0.5 text-xs leading-5 text-muted-foreground">Đại học Trà Vinh · CNTT</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
@@ -58,7 +58,7 @@ export function Footer() {
                   <p className="mt-0.5 text-xs leading-5 text-muted-foreground">Giá, diện tích, trạng thái và địa chỉ dễ kiểm tra.</p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Navigation Links */}
@@ -115,11 +115,6 @@ export function Footer() {
                 <ul className="mt-3 space-y-2">
                   <li><Link to="/about" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Giới thiệu</Link></li>
                   <li><Link to="/contact" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Liên hệ</Link></li>
-                  <li>
-                    <a href="https://www.tvu.edu.vn" target="_blank" rel="noreferrer" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-                      Trường Đại học Trà Vinh
-                    </a>
-                  </li>
                   {!isLoggedIn && (
                     <li>
                       <Link to="/register" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
@@ -137,7 +132,7 @@ export function Footer() {
 
         <div className="flex flex-col gap-4 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span>© {year} Phòng Trọ TVU.</span>
+            <span>© {year} Phòng Trọ Sinh Viên.</span>
             <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/40 sm:inline-block" />
             <span>Thiết kế cho nhu cầu tìm phòng sinh viên.</span>
           </div>
@@ -147,13 +142,9 @@ export function Footer() {
               <MapPin className="h-3.5 w-3.5" />
               Vĩnh Long, Việt Nam
             </span>
-            <a href={`mailto:support@${window.location.hostname || 'phongtrotvu.local'}`} className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
+            <a href={`mailto:support@${window.location.hostname || 'sinhvientvu.com'}`} className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
               <Mail className="h-3.5 w-3.5" />
               Liên hệ
-            </a>
-            <a href="https://www.tvu.edu.vn" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
-              <Globe className="h-3.5 w-3.5" />
-              tvu.edu.vn
             </a>
           </div>
         </div>
