@@ -100,6 +100,7 @@ export function SimilarRooms({ roomId, limit = 6, targetLocation }) {
                 key={room._id}
                 room={room}
                 distanceText={distanceText}
+                distanceLabel="Cách phòng này"
               />
             )
           })}

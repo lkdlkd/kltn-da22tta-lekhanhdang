@@ -64,6 +64,7 @@ export function RoomCard({
   view = 'grid',
   highlighted = false,
   distanceText,
+  distanceLabel = 'Cách bạn',
   showActions = true,
   showFavorite = true,
   showCompare = true,
@@ -140,7 +141,7 @@ export function RoomCard({
           {distanceText && (
             <div className="inline-flex w-fit items-center gap-1 rounded-lg border bg-primary/5 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-primary">
               <MapPin className="h-3 w-3" />
-              Cách bạn {distanceText}
+              {distanceLabel} {distanceText}
             </div>
           )}
 
